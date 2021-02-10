@@ -14,7 +14,6 @@ import DashboardPlugin from './../../plugins/dashboard-plugin';
 import Global from './../../mixins/global';
 
 import Form from './../../plugins/form';
-
 import CardForm from './../../components/CreditCard/CardForm';
 
 // plugin setup
@@ -41,7 +40,9 @@ const app = new Vue({
                 cardNumber: '',
                 cardMonth: '',
                 cardYear: '',
-                cardCvv: ''
+                cardCvv: '',
+                storeCard: false,
+                card_id: 0,
             }
         }
     },
@@ -54,11 +55,19 @@ const app = new Vue({
 
             let method = payment_method.split('.');
 
-            let path = url + '/portal/invoices/' + this.form.invoice_id + '/' + method[0];
+            let path = url + '/portal/invoices/' + this.form.document_id + '/' + method[0];
 
-            //this.method_show_html = '<div id="loading" class="text-center"><i class="fa fa-spinner fa-spin fa-5x checkout-spin"></i></div>';
+            this.method_show_html = Vue.component('payment-method-confirm', function (resolve, reject) {
+                resolve({
+                    template:'<div id="loading" class="description text-center"><i class="fa fa-spinner fa-spin fa-5x checkout-spin"></i></div>'
+                })
+            });
 
-            axios.get(path)
+            axios.get(path, {
+                params: {
+                    payment_method: payment_method
+                }
+            })
             .then(response => {
                 this.method_show_html = '';
 
@@ -75,14 +84,21 @@ const app = new Vue({
                                 CardForm
                             },
 
+                            created: function() {
+                                this.form = new Form('redirect-form');
+                            },
+
                             data: function () {
                                 return {
+                                    form: {},
                                     formData: {
                                         cardName: '',
                                         cardNumber: '',
                                         cardMonth: '',
                                         cardYear: '',
-                                        cardCvv: ''
+                                        cardCvv: '',
+                                        storeCard: false,
+                                        card_id: 0,
                                     }
                                 }
                             },
@@ -128,9 +144,21 @@ const app = new Vue({
 
             this.form.payment_action = payment_method;
 
-            let payment_action = payment_action_path[payment_method];
+            let method = payment_method.split('.');
 
-            axios.get(payment_action)
+            let payment_action = payment_action_path[method[0]];
+
+            this.method_show_html = Vue.component('payment-method-confirm', function (resolve, reject) {
+                resolve({
+                    template:'<div id="loading" class="description text-center"><i class="fa fa-spinner fa-spin fa-5x checkout-spin"></i></div>'
+                })
+            });
+
+            axios.get(payment_action, {
+                params: {
+                    payment_method: payment_method
+                }
+            })
             .then(response => {
                 this.method_show_html = '';
 
@@ -147,14 +175,21 @@ const app = new Vue({
                                 CardForm
                             },
 
+                            created: function() {
+                                this.form = new Form('redirect-form');
+                            },
+
                             data: function () {
                                 return {
+                                    form: {},
                                     formData: {
                                         cardName: '',
                                         cardNumber: '',
                                         cardMonth: '',
                                         cardYear: '',
-                                        cardCvv: ''
+                                        cardCvv: '',
+                                        storeCard: false,
+                                        card_id: 0,
                                     }
                                 }
                             },

@@ -3,9 +3,9 @@
 namespace Modules\OfflinePayments\Http\Controllers;
 
 use App\Abstracts\Http\PaymentController;
-use \App\Events\Sale\PaymentReceived;
+use \App\Events\Document\PaymentReceived;
 use App\Http\Requests\Portal\InvoicePayment as PaymentRequest;
-use App\Models\Sale\Invoice;
+use App\Models\Document\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 
@@ -15,7 +15,7 @@ class Payment extends PaymentController
 
     public $type = 'redirect';
 
-    public function show(Invoice $invoice, PaymentRequest $request)
+    public function show(Document $invoice, PaymentRequest $request)
     {
         $setting = [];
 
@@ -40,7 +40,7 @@ class Payment extends PaymentController
         ]);
     }
 
-    public function signed(Invoice $invoice, PaymentRequest $request)
+    public function signed(Document $invoice, PaymentRequest $request)
     {
         $setting = [];
 
@@ -67,7 +67,7 @@ class Payment extends PaymentController
         ]);
     }
 
-    public function confirm(Invoice $invoice, Request $request)
+    public function confirm(Document $invoice, Request $request)
     {
         try {
             event(new PaymentReceived($invoice, $request));

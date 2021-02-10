@@ -27,6 +27,7 @@ class AddIncomeExpenseCategories extends Listener
         }
 
         $event->class->filters['categories'] = $this->getIncomeExpenseCategories();
+        $event->class->filters['routes']['categories'] = ['categories.index', 'search=type:income,expense'];
     }
 
     /**
@@ -74,7 +75,9 @@ class AddIncomeExpenseCategories extends Listener
 
                 break;
             case 'App\Reports\IncomeExpenseSummary':
-                if ($categories = request('categories')) {
+                if ($category_ids = $this->getSearchStringValue('category_id')) {
+                    $categories = explode(',', $category_ids);
+
                     $rows = collect($event->class->filters['categories'])->filter(function ($value, $key) use ($categories) {
                         return in_array($key, $categories);
                     });

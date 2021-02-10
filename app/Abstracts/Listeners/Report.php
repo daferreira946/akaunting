@@ -7,11 +7,12 @@ use App\Models\Common\Contact;
 use App\Models\Setting\Category;
 use App\Traits\Contacts;
 use App\Traits\DateTime;
+use App\Traits\SearchString;
 use Date;
 
 abstract class Report
 {
-    use Contacts, DateTime;
+    use Contacts, DateTime, SearchString;
 
     protected $classes = [];
 
@@ -52,7 +53,7 @@ abstract class Report
 
     public function getAccounts()
     {
-        return Account::enabled()->orderBy('name')->pluck('name', 'id')->toArray();
+        return Account::enabled()->orderBy('name')->take(setting('default.select_limit'))->pluck('name', 'id')->toArray();
     }
 
     public function getItemCategories()
@@ -77,7 +78,7 @@ abstract class Report
 
     public function getCategories($types)
     {
-        return Category::type($types)->orderBy('name')->pluck('name', 'id')->toArray();
+        return Category::type($types)->orderBy('name')->take(setting('default.select_limit'))->pluck('name', 'id')->toArray();
     }
 
     public function getCustomers()
@@ -92,7 +93,7 @@ abstract class Report
 
     public function getContacts($types)
     {
-        return Contact::type($types)->orderBy('name')->pluck('name', 'id')->toArray();
+        return Contact::type($types)->orderBy('name')->take(setting('default.select_limit'))->pluck('name', 'id')->toArray();
     }
 
     public function applyDateFilter($event)
@@ -102,16 +103,22 @@ abstract class Report
 
     public function applySearchStringFilter($event)
     {
-        $event->model->usingSearchString(request('search'));
+        $input = request('search');
+
+        // Remove year as it's handled based on financial start
+        $search_year = 'year:' . $this->getSearchStringValue('year', '', $input);
+        $input = str_replace($search_year, '', $input);
+
+        $event->model->usingSearchString($input);
     }
 
     public function applyAccountGroup($event)
     {
-        if (($event->model->getTable() != 'invoices') && ($event->model->getTable() != 'bills')) {
+        if ($event->model->getTable() != 'documents') {
             return;
         }
 
-        $filter = request('accounts', []);
+        $filter = explode(',', $this->getSearchStringValue('account_id'));
 
         $event->model->account_id = 0;
 

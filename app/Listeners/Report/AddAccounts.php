@@ -29,6 +29,7 @@ class AddAccounts extends Listener
         }
 
         $event->class->filters['accounts'] = $this->getAccounts();
+        $event->class->filters['routes']['accounts'] = 'accounts.index';
     }
 
     /**
@@ -73,7 +74,9 @@ class AddAccounts extends Listener
             return;
         }
 
-        if ($accounts = request('accounts')) {
+        if ($account_ids = $this->getSearchStringValue('account_id')) {
+            $accounts = explode(',', $account_ids);
+
             $rows = collect($event->class->filters['accounts'])->filter(function ($value, $key) use ($accounts) {
                 return in_array($key, $accounts);
             });

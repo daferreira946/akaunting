@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'fail' => 'no-results',
+    'fail' => 'all-results',
 
     /*
     |--------------------------------------------------------------------------
@@ -69,7 +69,9 @@ return [
             'number' => ['searchable' => true],
             'bank_name' => ['searchable' => true],
             'bank_address' => ['searchable' => true],
-            'currency' => ['relationship' => true],
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
             'enabled' => ['boolean' => true],
         ],
     ],
@@ -87,16 +89,24 @@ return [
     App\Models\Banking\Transaction::class => [
         'columns' => [
             'type',
-            'account_id',
+            'account_id' => [
+                'route' => 'accounts.index'
+            ],
             'paid_at' => ['date' => true],
             'amount',
-            'currency_code',
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
             'document_id',
-            'contact_id',
+            'contact_id' => [
+                'route' => 'customers.index'
+            ],
             'description' => ['searchable' => true],
             'payment_method',
             'reference',
-            'category_id',
+            'category_id' => [
+                'route' => 'categories.index'
+            ],
             'parent_id',
         ],
     ],
@@ -104,6 +114,7 @@ return [
     App\Models\Common\Company::class => [
         'columns' => [
             'domain' => ['searchable' => true],
+            'settings.value' => ['searchable' => true],
             'enabled' => ['boolean' => true],
         ],
     ],
@@ -120,8 +131,10 @@ return [
             'name' => ['searchable' => true],
             'description' => ['searchable' => true],
             'enabled' => ['boolean' => true],
-            'category_id' => ['key' => 'category_id'],
-            'sale_price',
+            'category_id' => [
+                'route' => ['categories.index', 'search=type:item']
+            ],
+            'sales_price',
             'purchase_price',
         ],
     ],
@@ -135,49 +148,113 @@ return [
             'phone' => ['searchable' => true],
             'address' => ['searchable' => true],
             'website' => ['searchable' => true],
-            'currency_code',
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
             'reference',
             'user_id',
             'enabled' => ['boolean' => true],
         ],
     ],
 
-    App\Models\Purchase\Bill::class => [
+    App\Models\Document\Document::class => [
         'columns' => [
-            'bill_number' => ['searchable' => true],
+            'type' => ['searchable' => true],
+            'document_number' => ['searchable' => true],
             'order_number' => ['searchable' => true],
             'status',
-            'billed_at' => ['date' => true],
+            'issued_at' => ['date' => true],
             'due_at' => ['date' => true],
             'amount',
-            'currency_code',
-            'contact_id',
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
+            'contact_id' => [
+                'route' => 'vendors.index'
+            ],
             'contact_name' => ['searchable' => true],
             'contact_email' => ['searchable' => true],
             'contact_tax_number',
             'contact_phone' => ['searchable' => true],
             'contact_address' => ['searchable' => true],
-            'category_id',
+            'category_id' => [
+                'route' => 'categories.index'
+            ],
             'parent_id',
+        ],
+    ],
+
+    App\Models\Purchase\Bill::class => [
+        'columns' => [
+            'document_number' => ['searchable' => true],
+            'order_number' => ['searchable' => true],
+            'status',
+            'issued_at' => [
+                'key' => 'billed_at',
+                'date' => true,
+            ],
+            'due_at' => ['date' => true],
+            'amount',
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
+            'contact_id' => [
+                'route' => 'vendors.index'
+            ],
+            'contact_name' => ['searchable' => true],
+            'contact_email' => ['searchable' => true],
+            'contact_tax_number',
+            'contact_phone' => ['searchable' => true],
+            'contact_address' => ['searchable' => true],
+            'category_id' => [
+                'route' => ['categories.index', 'search=type:expense']
+            ],
+            'parent_id',
+        ],
+    ],
+
+    App\Models\Purchase\Vendor::class => [
+        'columns' => [
+            'type',
+            'name' => ['searchable' => true],
+            'email' => ['searchable' => true],
+            'tax_number' => ['searchable' => true],
+            'phone' => ['searchable' => true],
+            'address' => ['searchable' => true],
+            'website' => ['searchable' => true],
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
+            'reference',
+            'enabled' => ['boolean' => true],
         ],
     ],
 
     App\Models\Sale\Invoice::class => [
         'columns' => [
-            'invoice_number' => ['searchable' => true],
+            'document_number' => ['searchable' => true],
             'order_number' => ['searchable' => true],
             'status',
-            'invoiced_at' => ['date' => true],
+            'issued_at' => [
+                'key' => 'invoiced_at',
+                'date' => true,
+            ],
             'due_at' => ['date' => true],
             'amount',
-            'currency_code',
-            'contact_id',
+            'currency_code' => [
+                'route' => 'currencies.index'
+            ],
+            'contact_id' => [
+                'route' => 'customers.index'
+            ],
             'contact_name' => ['searchable' => true],
             'contact_email' => ['searchable' => true],
             'contact_tax_number',
             'contact_phone' => ['searchable' => true],
             'contact_address' => ['searchable' => true],
-            'category_id',
+            'category_id' => [
+                'route' => ['categories.index', 'search=type:income']
+            ],
             'parent_id',
         ],
     ],
@@ -198,7 +275,13 @@ return [
             'enabled' => ['boolean' => true],
             'precision',
             'symbol',
-            'symbol_first' => ['boolean' => true],
+            'symbol_first' => [
+                'boolean' => true,
+                'translation' => [
+                    0 => 'currencies.symbol.after',
+                    1 => 'currencies.symbol.before',
+                ]
+            ],
             'decimal_mark',
             'thousands_separator',
         ],
@@ -210,6 +293,39 @@ return [
             'type',
             'rate',
             'enabled' => ['boolean' => true],
+        ],
+    ],
+
+    App\Models\Portal\Sale\Invoice::class => [
+        'columns' => [
+            'document_number' => ['searchable' => true],
+            'order_number' => ['searchable' => true],
+            'status',
+            'issued_at' => [
+                'key' => 'invoiced_at',
+                'date' => true,
+            ],
+            'due_at' => ['date' => true],
+            'amount',
+            'currency_code' => [
+                'route' => 'portal.payment.currencies'
+            ],
+            'parent_id',
+        ],
+    ],
+
+    App\Models\Portal\Banking\Transaction::class => [
+        'columns' => [
+            'paid_at' => ['date' => true],
+            'amount',
+            'currency_code' => [
+                'route' => 'portal.payment.currencies'
+            ],
+            'document_id',
+            'description' => ['searchable' => true],
+            'payment_method',
+            'reference',
+            'parent_id',
         ],
     ],
 

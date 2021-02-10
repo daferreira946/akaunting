@@ -3,9 +3,9 @@
 namespace Modules\PaypalStandard\Http\Controllers;
 
 use App\Abstracts\Http\PaymentController;
-use App\Events\Sale\PaymentReceived;
+use App\Events\Document\PaymentReceived;
 use App\Http\Requests\Portal\InvoicePayment as PaymentRequest;
-use App\Models\Sale\Invoice;
+use App\Models\Document\Document;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Monolog\Handler\StreamHandler;
@@ -17,7 +17,7 @@ class Payment extends PaymentController
 
     public $type = 'redirect';
 
-    public function show(Invoice $invoice, PaymentRequest $request)
+    public function show(Document $invoice, PaymentRequest $request)
     {
         $setting = $this->setting;
 
@@ -38,7 +38,7 @@ class Payment extends PaymentController
         ]);
     }
 
-    public function return(Invoice $invoice, Request $request)
+    public function return(Document $invoice, Request $request)
     {
         $success = true;
 
@@ -71,7 +71,7 @@ class Payment extends PaymentController
         return redirect($invoice_url);
     }
 
-    public function complete(Invoice $invoice, Request $request)
+    public function complete(Document $invoice, Request $request)
     {
         $setting = $this->setting;
 
@@ -118,7 +118,7 @@ class Payment extends PaymentController
                 $total_paid_match = ((double) $request['mc_gross'] == $invoice->amount);
 
                 if ($receiver_match && $total_paid_match) {
-                    event(new PaymentReceived($invoice, $request));
+                    event(new PaymentReceived($invoice, $request->merge(['type' => 'income'])));
                 }
 
                 if (!$receiver_match) {

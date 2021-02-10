@@ -2,7 +2,6 @@
 
 namespace App\Models\Setting;
 
-use App\Scopes\Company;
 use App\Traits\Tenants;
 use Illuminate\Database\Eloquent\Model as Eloquent;
 
@@ -22,13 +21,6 @@ class Setting extends Eloquent
      * @var array
      */
     protected $fillable = ['company_id', 'key', 'value'];
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::addGlobalScope(new Company);
-    }
 
     public function company()
     {

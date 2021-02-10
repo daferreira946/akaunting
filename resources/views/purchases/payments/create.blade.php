@@ -26,11 +26,11 @@
 
                     {{ Form::selectAddNewGroup('account_id', trans_choice('general.accounts', 1), 'university', $accounts, setting('default.account'), ['required' => 'required', 'path' => route('modals.accounts.create'), 'change' => 'onChangeAccount']) }}
 
-                    {{ Form::selectAddNewGroup('contact_id', trans_choice('general.vendors', 1), 'user', $vendors, setting('default.vendor'), ['path' => route('modals.vendors.create')]) }}
+                    {{ Form::selectRemoteAddNewGroup('contact_id', trans_choice('general.vendors', 1), 'user', $vendors, null, ['path' => route('modals.vendors.create'), 'remote_action' => route('vendors.index')]) }}
 
                     {{ Form::textareaGroup('description', trans('general.description')) }}
 
-                    {{ Form::selectAddNewGroup('category_id', trans_choice('general.categories', 1), 'folder', $categories, setting('default.category'), ['required' => 'required', 'path' => route('modals.categories.create') . '?type=expense']) }}
+                    {{ Form::selectRemoteAddNewGroup('category_id', trans_choice('general.categories', 1), 'folder', $categories, setting('default.expense_category'), ['required' => 'required', 'path' => route('modals.categories.create') . '?search=type:expense', 'remote_action' => route('categories.index'). '?type=expense']) }}
 
                     {{ Form::recurring('create') }}
 
@@ -38,9 +38,9 @@
 
                     {{ Form::textGroup('reference', trans('general.reference'), 'file', []) }}
 
-                    {{ Form::fileGroup('attachment', trans('general.attachment')) }}
-
                     {{ Form::selectGroup('document_id', trans_choice('general.bills', 1), 'file-invoice', [], null, ['disabled' => 'true']) }}
+
+                    {{ Form::fileGroup('attachment', trans('general.attachment'), '', ['dropzone-class' => 'w-100', 'multiple' => 'multiple', 'options' => ['acceptedFiles' => $file_types]], null, 'col-md-12') }}
                 </div>
             </div>
 

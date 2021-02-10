@@ -2,6 +2,11 @@ import Vue from 'vue';
 
 import axios from 'axios';
 
+import AkauntingDropzoneFileUpload from './../components/AkauntingDropzoneFileUpload';
+import AkauntingContactCard from './../components/AkauntingContactCard';
+import AkauntingCompanyEdit from './../components/AkauntingCompanyEdit';
+import AkauntingEditItemColumns from './../components/AkauntingEditItemColumns';
+import AkauntingItemButton from './../components/AkauntingItemButton';
 import AkauntingSearch from './../components/AkauntingSearch';
 import AkauntingModal from './../components/AkauntingModal';
 import AkauntingMoney from './../components/AkauntingMoney';
@@ -13,6 +18,7 @@ import AkauntingDate from './../components/AkauntingDate';
 import AkauntingRecurring from './../components/AkauntingRecurring';
 import AkauntingHtmlEditor from './../components/AkauntingHtmlEditor';
 import AkauntingCountdown from './../components/AkauntingCountdown';
+import AkauntingCurrencyConversion from './../components/AkauntingCurrencyConversion';
 
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
@@ -21,9 +27,15 @@ import NProgressAxios from './../plugins/nprogress-axios';
 import { Select, Option, Steps, Step, Button, Link, Tooltip, ColorPicker } from 'element-ui';
 
 import Form from './../plugins/form';
+import { concat } from 'lodash';
 
 export default {
     components: {
+        AkauntingDropzoneFileUpload,
+        AkauntingContactCard,
+        AkauntingCompanyEdit,
+        AkauntingEditItemColumns,
+        AkauntingItemButton,
         AkauntingSearch,
         AkauntingRadioGroup,
         AkauntingSelect,
@@ -35,6 +47,7 @@ export default {
         AkauntingRecurring,
         AkauntingHtmlEditor,
         AkauntingCountdown,
+        AkauntingCurrencyConversion,
         [Select.name]: Select,
         [Option.name]: Option,
         [Steps.name]: Steps,
@@ -48,7 +61,16 @@ export default {
     data: function () {
         return {
             component: '',
-            currency: null,
+            currency: {
+                "name":"US Dollar",
+                "code":"USD",
+                "rate":1,
+                "precision":2,
+                "symbol":"$",
+                "symbol_first":1,
+                "decimal_mark":".",
+                "thousands_separator":",",
+            },
         }
     },
 
@@ -388,5 +410,19 @@ export default {
                 })
             });
         },
+
+        // Change Contact Card set form fields..
+        onChangeContactCard(contact) {
+            this.form.contact_id = contact.id;
+            this.form.contact_name = (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name;
+            this.form.contact_email = (contact.email) ? contact.email : '';
+            this.form.contact_tax_number = (contact.tax_number) ? contact.tax_number : '';
+            this.form.contact_phone = (contact.phone) ? contact.phone : '';
+            this.form.contact_address = (contact.address) ? contact.address : '';
+
+            let currency_code = (contact.currency_code) ? contact.currency_code : this.form.currency_code;
+
+            this.onChangeCurrency(currency_code);
+        }
     }
 }
