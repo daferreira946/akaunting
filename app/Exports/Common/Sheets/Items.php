@@ -3,19 +3,16 @@
 namespace App\Exports\Common\Sheets;
 
 use App\Abstracts\Export;
+use App\Http\Requests\Common\Item as Request;
 use App\Models\Common\Item as Model;
 
 class Items extends Export
 {
+    public $request_class = Request::class;
+
     public function collection()
     {
-        $model = Model::with('category')->usingSearchString(request('search'));
-
-        if (!empty($this->ids)) {
-            $model->whereIn('id', (array) $this->ids);
-        }
-
-        return $model->cursor();
+        return Model::with('category')->collectForExport($this->ids);
     }
 
     public function map($model): array
@@ -29,6 +26,7 @@ class Items extends Export
     {
         return [
             'name',
+            'type',
             'description',
             'sale_price',
             'purchase_price',

@@ -13,6 +13,9 @@ return [
         'issued_at'         => 'Data de emissão',
         'symbol_first'      => 'Posição do símbolo',
         'reconciled'        => 'Reconciliado',
+        'expense_account'   => 'Da conta',
+        'income_account'    => 'Para conta',
+        'recurring'         => 'Recorrente',
     ],
 
 ];

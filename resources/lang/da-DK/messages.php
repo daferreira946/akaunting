@@ -8,9 +8,16 @@ return [
         'deleted'           => ':type slettet!',
         'duplicated'        => ':type duplikeret!',
         'imported'          => ':type importeret!',
+        'import_queued'     => ':type import er planlagt! Du vil modtage en e-mail, når den er færdig.',
         'exported'          => ':type exporteret!',
+        'export_queued'     => ':type eksport er planlagt! Du vil modtage en e-mail, når den er klar til download.',
         'enabled'           => ':type aktiveret!',
         'disabled'          => ':type deaktiveret!',
+        'connected'         => ':type tilsluttet!',
+        'invited'           => ':type inviteret!',
+        'ended'             => ':type afsluttet!',
+
+        'clear_all'         => 'Fantastisk! Du har ryddet alle dine :type.',
     ],
 
     'error' => [
@@ -19,10 +26,13 @@ return [
         'customer'          => 'Fejl: Brugeren ikke oprettet! :name bruger allerede denne E-mail.',
         'no_file'           => 'Fejl: Ingen fil valgt!',
         'last_category'     => 'Fejl: Kan ikke slette sidste :type kategori!',
+        'transfer_category' => 'Fejl: Kan ikke slette overførslen <b>:type</b> kategori!',
         'change_type'       => 'Fejl: Kan ikke ændre type fordi den har :text relateret!',
         'invalid_apikey'    => 'Fejl: API nøglen er ikke gyldig!',
         'import_column'     => 'Error: :message arkets navn: :sheet. Linje nummer: :line.',
         'import_sheet'      => 'Error: Ark navn er ikke valid. Kontroller venligst eksempel filen.',
+        'same_amount'       => 'Fejl: Det samlede opdelingsbeløb skal være nøjagtigt det samme som :transaktion total: :amount',
+        'over_match'        => 'Fejl: :type ikke tilsluttet! Det angivne beløb kan ikke overstige det samlede beløb: :amount',
     ],
 
     'warning' => [
@@ -32,6 +42,7 @@ return [
         'reconciled_doc'    => 'Advarsel: Du kan ikke ændre eller slette :type, da den er afstemt.',
         'disable_code'      => 'Advarsel: Du må ikke deaktivere eller ændre valutaen i <b>:name</b> , fordi den er :text relateret.',
         'payment_cancel'    => 'Advarsel: Du har annulleret den seneste :method betaling!',
+        'missing_transfer'  => 'Advarsel: Overførslen relateret til denne transaktion mangler. Du bør overveje at slette denne transaktion.',
     ],
 
 ];

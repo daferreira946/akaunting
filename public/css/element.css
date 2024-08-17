@@ -14,7 +14,8 @@
     font-family: element-icons;
     src: url(fonts/element-icons.woff) format("woff"),url(fonts/element-icons.ttf) format("truetype");
     font-weight: 400;
-    font-display:"auto";font-style: normal
+    font-display:"auto";
+    font-style: normal;
 }
 
 [class*=" el-icon-"],[class^=el-icon-] {
@@ -10202,7 +10203,7 @@
 }
 
 .el-progress-bar__innerText {
-    color: #FFF;
+    color: #FFF !important;
     font-size: 12px;
     margin: 0 5px
 }
@@ -15438,7 +15439,7 @@
 
 .el-color-picker__color
 {
-    margin-top: 10 !important;
+    margin-top: 10px !important;
     height: 18px !important;
     margin-left: 7px !important;
 }
@@ -15635,7 +15636,7 @@
 /*--------Select Input Color--------*/
 .el-input__inner
 {
-    height: 46px !important;
+    height: 46px;
     color: #8696a9 !important;
 }
 

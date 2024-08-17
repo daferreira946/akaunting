@@ -12,10 +12,10 @@ class InvoiceTemplates extends Controller
     public function __construct()
     {
         // Add CRUD permission check
-        $this->middleware('permission:create-settings-settings')->only('create', 'store');
-        $this->middleware('permission:read-settings-settings')->only('index', 'edit');
-        $this->middleware('permission:update-settings-settings')->only('update', 'enable', 'disable');
-        $this->middleware('permission:delete-settings-settings')->only('destroy');
+        $this->middleware('permission:create-settings-invoice')->only('create', 'store');
+        $this->middleware('permission:read-settings-invoice')->only('index', 'edit');
+        $this->middleware('permission:update-settings-invoice')->only('update', 'enable', 'disable');
+        $this->middleware('permission:delete-settings-invoice')->only('destroy');
     }
 
     /**
@@ -32,7 +32,7 @@ class InvoiceTemplates extends Controller
         $company_id = $request->get('company_id');
 
         if (empty($company_id)) {
-            $company_id = session('company_id');
+            $company_id = company_id();
         }
 
         foreach ($fields as $key => $value) {

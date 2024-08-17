@@ -1,38 +1,45 @@
 <template>
-    <div v-if="!rowInput" class="form-group"
+    <div v-if="! rowInput"
         :class="[{'has-error': error}, {'required': required}, {'readonly': readonly}, {'disabled': disabled}, col]">
-        <label v-if="title" :for="name" class="form-control-label">{{ title }}</label>
 
-        <div class="input-group input-group-merge" :class="group_class">
-            <div v-if="icon" class="input-group-prepend">
+        <label v-if="title" :for="name" class="text-black text-sm font-medium">
+            {{ title }}
+            <span v-if="!notRequired" class="text-red ltr:ml-1 rtl:mr-1">*</span>
+        </label>
+
+        <div class="relative" :class="group_class">
+            <!-- <div class="input-group-prepend absolute left-2 bottom-3 text-light-gray">
                 <span class="input-group-text">
-                    <i :class="'fa fa-' + icon"></i>
+                    <span class="material-icons w-4 h-5 text-sm">{{ icon }}</span>
                 </span>
-            </div>
+            </div> -->
 
-            <money :name="name" @input="input" :placeholder="placeholder" v-bind="money" :value="model" :disabled="disabled" :masked="masked" class="form-control" :class="moneyClass"></money>
+            <money :name="name" @input="input" :placeholder="placeholder" v-bind="money" :value="model" :disabled="disabled" :masked="masked" class="input-money" :class="moneyClass"></money>
         </div>
 
-        <div class="invalid-feedback d-block" v-if="error" v-html="error"></div>
+        <div class="text-red text-sm mt-1 block" v-if="error" v-html="error"></div>
     </div>
 
     <div v-else
         :class="[{'has-error': error}, {'required': required}, {'readonly': readonly}, {'disabled': disabled}, col]">
-        <label v-if="title" :for="name" class="form-control-label">{{ title }}</label>
 
-        <div v-if="icon" class="input-group input-group-merge" :class="group_class">
+        <label v-if="title" :for="name" class="text-black text-sm font-medium">
+            {{ title }}
+        </label>
+
+        <div v-if="icon" :class="group_class">
             <div v-if="icon" class="input-group-prepend">
                 <span class="input-group-text">
                     <i :class="'fa fa-' + icon"></i>
                 </span>
             </div>
 
-            <money :name="name" @input="input" :placeholder="placeholder" v-bind="money" :value="model" :disabled="disabled" :masked="masked" class="form-control" :class="moneyClass"></money>
+            <money :name="name" @input="input" :placeholder="placeholder" v-bind="money" :value="model" :disabled="disabled" :masked="masked" class="input-money" :class="moneyClass"></money>
         </div>
 
-        <money v-else :name="name" @input="input" :placeholder="placeholder" v-bind="money" :value="model" :disabled="disabled" :masked="masked" class="form-control" :class="moneyClass"></money>
+        <money v-else :name="name" @input="input" :placeholder="placeholder" v-bind="money" :value="model" :disabled="disabled" :masked="masked" class="input-money" :class="moneyClass"></money>
 
-        <div class="invalid-feedback d-block" v-if="error" v-html="error"></div>
+        <div class="text-red text-sm mt-1 block" v-if="error" v-html="error"></div>
     </div>
 </template>
 
@@ -102,6 +109,11 @@ export default {
             default: false,
             description: "Selectbox disabled status"
         },
+        isDynamic: {
+            type: Boolean,
+            default: true,
+            description: "Currency is dynamic"
+        },
         dynamicCurrency: {
             type: Object,
             default: function () {
@@ -134,10 +146,14 @@ export default {
             description: "Money result value"
         },
         rowInput: {
-            type: Boolean,
+            type: [Boolean, Number],
             default: false,
             description: "Money result value"
         },
+        notRequired: {
+            type: Boolean,
+            default: false
+        }
     },
 
     data() {
@@ -156,6 +172,23 @@ export default {
 
     mounted() {
         //this.model = this.value;
+
+        if (this.isDynamic) {
+            if (this.dynamicCurrency.code != this.currency.code) {
+                if (! this.dynamicCurrency.decimal) {
+                    this.money = {
+                        decimal: this.dynamicCurrency.decimal_mark,
+                        thousands: this.dynamicCurrency.thousands_separator,
+                        prefix: (this.dynamicCurrency.symbol_first) ? this.dynamicCurrency.symbol : '',
+                        suffix: (! this.dynamicCurrency.symbol_first) ? this.dynamicCurrency.symbol : '',
+                        precision: parseInt(this.dynamicCurrency.precision),
+                        masked: this.masked
+                    };
+                } else {
+                    this.money = this.dynamicCurrency;
+                }
+            }
+        }
 
         this.$emit('interface', this.model);
     },
@@ -180,7 +213,7 @@ export default {
 
     watch: {
         dynamicCurrency: function (currency) {
-            if (!currency) {
+            if (! currency) {
                 return;
             }
 

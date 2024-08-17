@@ -11,28 +11,39 @@ class Transfers extends BulkAction
 {
     public $model = Transfer::class;
 
+    public $text = 'general.transfers';
+
+    public $path = [
+        'group' => 'banking',
+        'type' => 'transfers',
+    ];
+
     public $actions = [
-        'delete' => [
-            'name' => 'general.delete',
-            'message' => 'bulk_actions.message.delete',
-            'permission' => 'delete-banking-transfers',
+        'delete'    => [
+            'icon'          => 'delete',
+            'name'          => 'general.delete',
+            'message'       => 'bulk_actions.message.delete',
+            'permission'    => 'delete-banking-transfers',
         ],
-        'export' => [
-            'name' => 'general.export',
-            'message' => 'bulk_actions.message.export',
-            'type' => 'download',
+        'export'    => [
+            'icon'          => 'file_download',
+            'name'          => 'general.export',
+            'message'       => 'bulk_actions.message.export',
+            'type'          => 'download',
         ],
     ];
 
     public function destroy($request)
     {
-        $transfers = $this->getSelectedRecords($request);
+        $transfers = $this->getSelectedRecords($request, [
+            'expense_transaction', 'income_transaction'
+        ]);
 
         foreach ($transfers as $transfer) {
             try {
                 $this->dispatch(new DeleteTransfer($transfer));
             } catch (\Exception $e) {
-                flash($e->getMessage())->error();
+                flash($e->getMessage())->error()->important();
             }
         }
     }
@@ -41,6 +52,6 @@ class Transfers extends BulkAction
     {
         $selected = $this->getSelectedInput($request);
 
-        return \Excel::download(new Export($selected), \Str::filename(trans_choice('general.transfers', 2)) . '.xlsx');
+        return $this->exportExcel(new Export($selected), trans_choice('general.transfers', 2));
     }
 }

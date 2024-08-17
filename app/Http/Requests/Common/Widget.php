@@ -3,19 +3,10 @@
 namespace App\Http\Requests\Common;
 
 use App\Abstracts\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class Widget extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -27,6 +18,14 @@ class Widget extends FormRequest
             'dashboard_id' => 'required|integer',
             'name' => 'required|string',
             'class' => 'required',
+            'sort' => 'integer',
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'class.required' => trans('validation.required', ['attribute' => Str::lower(trans_choice('general.types', 1))]),
         ];
     }
 }

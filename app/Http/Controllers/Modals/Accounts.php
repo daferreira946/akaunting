@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Modals;
 use App\Abstracts\Http\Controller;
 use App\Http\Requests\Banking\Account as Request;
 use App\Jobs\Banking\CreateAccount;
-use App\Models\Banking\Account;
 use App\Models\Setting\Currency;
 
 class Accounts extends Controller
@@ -29,11 +28,9 @@ class Accounts extends Controller
      */
     public function create()
     {
-        $currencies = Currency::enabled()->pluck('name', 'code');
+        $currency = Currency::where('code', '=', default_currency())->first();
 
-        $currency = Currency::where('code', '=', setting('default.currency'))->first();
-
-        $html = view('modals.accounts.create', compact('currencies', 'currency'))->render();
+        $html = view('modals.accounts.create', compact('currency'))->render();
 
         return response()->json([
             'success' => true,
@@ -57,7 +54,7 @@ class Accounts extends Controller
         $response = $this->ajaxDispatch(new CreateAccount($request));
 
         if ($response['success']) {
-            $response['message'] = trans('messages.success.added', ['type' => trans_choice('general.accounts', 1)]);
+            $response['message'] = trans('messages.success.created', ['type' => trans_choice('general.accounts', 1)]);
         }
 
         return response()->json($response);

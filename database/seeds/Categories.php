@@ -3,11 +3,14 @@
 namespace Database\Seeds;
 
 use App\Abstracts\Model;
-use App\Models\Setting\Category;
+use App\Jobs\Setting\CreateCategory;
+use App\Traits\Jobs;
 use Illuminate\Database\Seeder;
 
 class Categories extends Seeder
 {
+    use Jobs;
+
     /**
      * Run the database seeds.
      *
@@ -64,26 +67,30 @@ class Categories extends Seeder
             ],
         ];
 
-        $income_category = $expense_category = false;
+        $income_category_id = $expense_category_id = 0;
 
         foreach ($rows as $row) {
-            $category = Category::create($row);
+            $row['created_from'] = 'core::seed';
+
+            $category = $this->dispatch(new CreateCategory($row));
 
             switch ($category->type) {
                 case 'income':
-                    if (empty($income_category)) {
-                        $income_category = $category;
+                    if (empty($income_category_id)) {
+                        $income_category_id = $category->id;
                     }
+
                     break;
                 case 'expense':
-                    if (empty($expense_category)) {
-                        $expense_category = $category;
+                    if (empty($expense_category_id)) {
+                        $expense_category_id = $category->id;
                     }
+
                     break;
             }
         }
 
-        setting()->set('default.income_category', $income_category->id);
-        setting()->set('default.expense_category', $expense_category->id);
+        setting()->set('default.income_category', $income_category_id);
+        setting()->set('default.expense_category', $expense_category_id);
     }
 }

@@ -9,17 +9,19 @@ use App\Http\Requests\Common\Import as ImportRequest;
 use App\Imports\Purchases\Vendors as Import;
 use App\Jobs\Common\CreateContact;
 use App\Jobs\Common\DeleteContact;
+use App\Jobs\Common\DuplicateContact;
 use App\Jobs\Common\UpdateContact;
-use App\Models\Banking\Transaction;
 use App\Models\Common\Contact;
-use App\Models\Document\Document;
-use App\Models\Setting\Currency;
 use App\Traits\Contacts;
-use Date;
 
 class Vendors extends Controller
 {
     use Contacts;
+
+    /**
+     * @var string
+     */
+    public $type = Contact::VENDOR_TYPE;
 
     /**
      * Display a listing of the resource.
@@ -28,7 +30,7 @@ class Vendors extends Controller
      */
     public function index()
     {
-        $vendors = Contact::with('bills.transactions')->vendor()->collect();
+        $vendors = Contact::with('media', 'bills.histories', 'bills.totals', 'bills.transactions', 'bills.media')->vendor()->collect();
 
         return $this->response('purchases.vendors.index', compact('vendors'));
     }
@@ -42,56 +44,7 @@ class Vendors extends Controller
      */
     public function show(Contact $vendor)
     {
-        $amounts = [
-            'paid' => 0,
-            'open' => 0,
-            'overdue' => 0,
-        ];
-
-        $counts = [];
-
-        // Handle bills
-        $bills = Document::bill()->with('transactions')->where('contact_id', $vendor->id)->get();
-
-        $counts['bills'] = $bills->count();
-
-        $today = Date::today()->toDateString();
-
-        foreach ($bills as $item) {
-            // Already in transactions
-            if ($item->status == 'paid') {
-                continue;
-            }
-
-            $transactions = 0;
-
-            foreach ($item->transactions as $transaction) {
-                $transactions += $transaction->getAmountConvertedToDefault();
-            }
-
-            // Check if it's open or overdue invoice
-            if ($item->due_at > $today) {
-                $amounts['open'] += $item->getAmountConvertedToDefault() - $transactions;
-            } else {
-                $amounts['overdue'] += $item->getAmountConvertedToDefault() - $transactions;
-            }
-        }
-
-        // Handle payments
-        $transactions = Transaction::with('category')->where('contact_id', $vendor->id)->expense()->get();
-
-        $counts['transactions'] = $transactions->count();
-
-        // Prepare data
-        $transactions->each(function ($item) use (&$amounts) {
-            $amounts['paid'] += $item->getAmountConvertedToDefault();
-        });
-
-        $limit = request('limit', setting('default.list_limit', '25'));
-        $transactions = $this->paginate($transactions->sortByDesc('paid_at'), $limit);
-        $bills = $this->paginate($bills->sortByDesc('issued_at'), $limit);
-
-        return view('purchases.vendors.show', compact('vendor', 'counts', 'amounts', 'transactions', 'bills'));
+        return view('purchases.vendors.show', compact('vendor'));
     }
 
     /**
@@ -101,9 +54,7 @@ class Vendors extends Controller
      */
     public function create()
     {
-        $currencies = Currency::enabled()->pluck('name', 'code');
-
-        return view('purchases.vendors.create', compact('currencies'));
+        return view('purchases.vendors.create');
     }
 
     /**
@@ -118,9 +69,9 @@ class Vendors extends Controller
         $response = $this->ajaxDispatch(new CreateContact($request));
 
         if ($response['success']) {
-            $response['redirect'] = route('vendors.index');
+            $response['redirect'] = route('vendors.show', $response['data']->id);
 
-            $message = trans('messages.success.added', ['type' => trans_choice('general.vendors', 1)]);
+            $message = trans('messages.success.created', ['type' => trans_choice('general.vendors', 1)]);
 
             flash($message)->success();
         } else {
@@ -128,7 +79,7 @@ class Vendors extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -143,7 +94,7 @@ class Vendors extends Controller
      */
     public function duplicate(Contact $vendor)
     {
-        $clone = $vendor->duplicate();
+        $clone = $this->dispatch(new DuplicateContact($vendor));
 
         $message = trans('messages.success.duplicated', ['type' => trans_choice('general.vendors', 1)]);
 
@@ -161,15 +112,19 @@ class Vendors extends Controller
      */
     public function import(ImportRequest $request)
     {
-        if (true !== $result = $this->importExcel(new Import, $request, 'purchases/vendors')) {
-            return $result;
+        $response = $this->importExcel(new Import, $request, trans_choice('general.vendors', 2));
+
+        if ($response['success']) {
+            $response['redirect'] = route('vendors.index');
+
+            flash($response['message'])->success();
+        } else {
+            $response['redirect'] = route('import.create', ['purchases', 'vendors']);
+
+            flash($response['message'])->error()->important();
         }
 
-        $message = trans('messages.success.imported', ['type' => trans_choice('general.vendors', 2)]);
-
-        flash($message)->success();
-
-        return redirect()->route('vendors.index');
+        return response()->json($response);
     }
 
     /**
@@ -181,9 +136,7 @@ class Vendors extends Controller
      */
     public function edit(Contact $vendor)
     {
-        $currencies = Currency::enabled()->pluck('name', 'code');
-
-        return view('purchases.vendors.edit', compact('vendor', 'currencies'));
+        return view('purchases.vendors.edit', compact('vendor'));
     }
 
     /**
@@ -199,7 +152,7 @@ class Vendors extends Controller
         $response = $this->ajaxDispatch(new UpdateContact($vendor, $request));
 
         if ($response['success']) {
-            $response['redirect'] = route('vendors.index');
+            $response['redirect'] = route('vendors.show', $response['data']->id);
 
             $message = trans('messages.success.updated', ['type' => $vendor->name]);
 
@@ -209,7 +162,7 @@ class Vendors extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -271,7 +224,7 @@ class Vendors extends Controller
         } else {
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -287,35 +240,17 @@ class Vendors extends Controller
         return $this->exportExcel(new Export, trans_choice('general.vendors', 2));
     }
 
-    public function currency(Contact $vendor)
+    public function createBill(Contact $vendor)
     {
-        if (empty($vendor)) {
-            return response()->json([]);
-        }
+        $data['contact'] = $vendor;
 
-        $currency_code = setting('default.currency');
+        return redirect()->route('bills.create')->withInput($data);
+    }
 
-        if (isset($vendor->currency_code)) {
-            $currencies = Currency::enabled()->pluck('name', 'code')->toArray();
+    public function createExpense(Contact $vendor)
+    {
+        $data['contact'] = $vendor;
 
-            if (array_key_exists($vendor->currency_code, $currencies)) {
-                $currency_code = $vendor->currency_code;
-            }
-        }
-
-        // Get currency object
-        $currency = Currency::where('code', $currency_code)->first();
-
-        $vendor->currency_name = $currency->name;
-        $vendor->currency_code = $currency_code;
-        $vendor->currency_rate = $currency->rate;
-
-        $vendor->thousands_separator = $currency->thousands_separator;
-        $vendor->decimal_mark = $currency->decimal_mark;
-        $vendor->precision = (int) $currency->precision;
-        $vendor->symbol_first = $currency->symbol_first;
-        $vendor->symbol = $currency->symbol;
-
-        return response()->json($vendor);
+        return redirect()->route('transactions.create', ['type' => 'expense'])->withInput($data);
     }
 }

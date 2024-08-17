@@ -4,9 +4,7 @@ namespace Database\Factories;
 
 use App\Abstracts\Factory;
 use App\Models\Banking\Account;
-use App\Models\Banking\Transaction;
 use App\Models\Banking\Transfer as Model;
-use App\Models\Setting\Category;
 
 class Transfer extends Factory
 {
@@ -24,41 +22,20 @@ class Transfer extends Factory
      */
     public function definition()
     {
-        $accounts = Account::enabled()->get();
+        $from_account = Account::factory()->enabled()->default_currency()->create();
 
-        if ($accounts->count() >= 2) {
-            $random = $accounts->random(2);
-
-            $expense_account = $random->first();
-            $income_account = $random->last();
-        } else {
-            $expense_account = $accounts->first();
-
-            $income_account = Account::factory()->enabled()->default_currency()->create();
-        }
-
-        $request = [
-            'amount' => $this->faker->randomFloat(2, 1, 1000),
-            'paid_at' => $this->faker->dateTimeBetween(now()->startOfYear(), now()->endOfYear())->format('Y-m-d'),
-            'category_id' => Category::transfer(),
-            'description' => $this->faker->text(20),
-            'reference' => $this->faker->text(20),
-        ];
-
-        $expense_transaction = Transaction::factory()->create(array_merge($request, [
-            'type' => 'expense',
-            'account_id' => $expense_account->id,
-        ]));
-
-        $income_transaction = Transaction::factory()->create(array_merge($request, [
-            'type' => 'income',
-            'account_id' => $income_account->id,
-        ]));
+        $to_account = Account::factory()->enabled()->default_currency()->create();
 
         return [
             'company_id' => $this->company->id,
-            'expense_transaction_id' => $expense_transaction->id,
-            'income_transaction_id' => $income_transaction->id,
+            'from_account_id' => $from_account->id,
+            'to_account_id' => $to_account->id,
+            'amount' => $this->faker->randomFloat(2, 1, 1000),
+            'transferred_at' => $this->faker->date(),
+            'description'=> $this->faker->text(20),
+            'payment_method' => setting('default.payment_method'),
+            'reference' => $this->faker->text(20),
+            'created_from' => 'core::factory',
         ];
     }
 }

@@ -7,11 +7,14 @@ use App\Events\Banking\TransactionRecurring;
 use App\Events\Document\DocumentCreated;
 use App\Events\Document\DocumentRecurring;
 use App\Models\Banking\Transaction;
+use App\Models\Common\Company;
 use App\Models\Common\Recurring;
 use App\Models\Document\Document;
 use App\Utilities\Date;
-use App\Utilities\Overrider;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Recurr\RecurrenceCollection;
 
 class RecurringCheck extends Command
 {
@@ -36,29 +39,50 @@ class RecurringCheck extends Command
      */
     public function handle()
     {
+        $this->info('Checking for recurring...');
+
+        // Bind to container
+        app()->instance(static::class, $this);
+
         // Disable model cache
         config(['laravel-model-caching.enabled' => false]);
 
         // Get all recurring
-        $recurring = Recurring::allCompanies()->with('company')->cursor();
+        $recurring = Recurring::with('company')
+                                /*->whereHas('recurable', function (Builder $query) {
+                                    $query->allCompanies();
+                                })*/
+                                ->active()
+                                ->allCompanies()
+                                ->cursor();
 
-        $this->info('Creating recurring records ' . $recurring->count());
+        //$this->info('Total recurring: ' . $recurring->count());
 
         foreach ($recurring as $recur) {
             if (empty($recur->company)) {
+                $this->info('Missing company.');
+
+                $recur->delete();
+
                 continue;
             }
 
+            $this->info('Recurring ID: ' . $recur->id);
+
             $company_name = !empty($recur->company->name) ? $recur->company->name : 'Missing Company Name : ' . $recur->company->id;
 
-            $this->info('Creating recurring records for ' . $company_name . ' company...');
+            $template = $recur->recurable()->where('company_id', $recur->company_id)->first();
 
             // Check if company is disabled
-            if (!$recur->company->enabled) {
+            if (! $recur->company->enabled) {
                 $this->info($company_name . ' company is disabled. Skipping...');
 
                 if (Date::parse($recur->company->updated_at)->format('Y-m-d') > Date::now()->subMonth(3)->format('Y-m-d')) {
                     $recur->delete();
+
+                    if ($template) {
+                        $template->delete();
+                    }
                 }
 
                 continue;
@@ -75,208 +99,171 @@ class RecurringCheck extends Command
                 }
             }
 
-            if (!$has_active_users) {
+            if (! $has_active_users) {
                 $this->info('No active users for ' . $company_name . ' company. Skipping...');
+
+                $recur->delete();
+
+                if ($template) {
+                    $template->delete();
+                }
+
+                continue;
+            }
+
+            company($recur->company_id)->makeCurrent();
+
+            if (! $template) {
+                $this->info('Missing model.');
 
                 $recur->delete();
 
                 continue;
             }
 
-            // Set company id
-            session(['company_id' => $recur->company_id]);
+            $this->info('Template ID: ' . $template->id);
 
-            // Override settings and currencies
-            Overrider::load('settings');
-            Overrider::load('currencies');
+            // Get the remaining schedules, including the previously failed ones
+            $schedules = $this->getRemainingSchedules($template, $recur);
 
-            $today = Date::today();
+            // Check if all schedules created
+            if ($schedules->count() == 0) {
+                $this->info('All schedules created.');
 
-            if (!$model = $recur->recurable) {
-                continue;
-            }
-
-            $schedules = $recur->getRecurringSchedule();
-
-            $children_count = $this->getChildrenCount($model);
-            $schedule_count = $schedules->count();
-
-            // All recurring created, including today
-            if ($children_count > ($schedule_count - 1)) {
-                continue;
-            }
-
-            // Recur only today
-            if ($children_count == ($schedule_count - 1)) {
-                $this->recur($model, $recur->recurable_type, $today);
+                $recur->update(['status' => Recurring::COMPLETE_STATUS]);
 
                 continue;
             }
 
-            // Recur all schedules, previously failed
+            // Don't create schedules for the future
+            $schedules = $schedules->endsBefore($recur->getRecurringRuleTomorrowDate());
+
+            if ($schedules->count() == 0) {
+                $this->info('No schedules for today.');
+
+                continue;
+            }
+
             foreach ($schedules as $schedule) {
                 $schedule_date = Date::parse($schedule->getStart()->format('Y-m-d'));
 
-                $this->recur($model, $recur->recurable_type, $schedule_date);
+                $this->info('Schedule date: ' . $schedule_date->format('Y-m-d'));
+
+                $this->recur($template, $schedule_date);
             }
         }
 
-        // Unset company_id
-        session()->forget('company_id');
-        setting()->forgetAll();
+        Company::forgetCurrent();
+
+        // Remove from container
+        app()->forgetInstance(static::class);
+
+        $this->info('Recurring check done!');
     }
 
-    protected function recur($model, $type, $schedule_date)
+    protected function recur(Document|Transaction $template, Date $schedule_date): void
     {
-        \DB::transaction(function () use ($model, $type, $schedule_date) {
-            if (!$clone = $this->getClone($model, $schedule_date)) {
+        DB::transaction(function () use ($template, $schedule_date) {
+            if (! $model = $this->getModel($template, $schedule_date)) {
                 return;
             }
 
-            switch ($type) {
-                case 'App\Models\Document\Document':
-                    event(new DocumentCreated($clone, request()));
+            $this->info('Model created: ' . $model->id);
 
-                    event(new DocumentRecurring($clone));
+            switch ($template::class) {
+                case Document::class:
+                    event(new DocumentCreated($model, request()));
+
+                    event(new DocumentRecurring($model));
 
                     break;
-                case 'App\Models\Banking\Transaction':
-                    event(new TransactionCreated($clone));
+                case Transaction::class:
+                    event(new TransactionCreated($model));
 
-                    event(new TransactionRecurring($clone));
+                    event(new TransactionRecurring($model));
 
                     break;
             }
         });
     }
 
-    /**
-     * Clone the model and return it.
-     *
-     * @param  $model
-     * @param  $schedule_date
-     *
-     * @return boolean|object
-     */
-    protected function getClone($model, $schedule_date)
+    protected function getModel(Document|Transaction $template, Date $schedule_date): Document|Transaction
     {
-        if ($this->skipThisClone($model, $schedule_date)) {
-            return false;
-        }
-
-        $function = ($model instanceof Transaction) ? 'getTransactionClone' : 'getDocumentClone';
+        $function = ($template instanceof Transaction) ? 'getTransactionModel' : 'getDocumentModel';
 
         try {
-            return $this->$function($model, $schedule_date);
-        } catch (\Exception | \Throwable | \Swift_RfcComplianceException| \Swift_TransportException | \Illuminate\Database\QueryException $e) {
+            return $this->$function($template, $schedule_date);
+        } catch (\Throwable $e) {
             $this->error($e->getMessage());
 
-            logger('Recurring check:: ' . $e->getMessage());
+            report($e);
 
             return false;
         }
     }
 
-    /**
-     * Clone the document and return it.
-     *
-     * @param  $model
-     * @param  $schedule_date
-     *
-     * @return boolean|object
-     */
-    protected function getDocumentClone($model, $schedule_date)
+    protected function getDocumentModel(Document $template, Date $schedule_date): Document
     {
-        $model->cloneable_relations = ['items', 'totals'];
+        $template->cloneable_relations = ['items', 'totals'];
 
-        $clone = $model->duplicate();
-
-        $date_field = $this->getDateField($model);
+        $model = $template->duplicate();
 
         // Days between issued and due date
-        $diff_days = Date::parse($clone->due_at)->diffInDays(Date::parse($clone->$date_field));
+        $diff_days = Date::parse($template->due_at)->diffInDays(Date::parse($template->issued_at));
 
-        $clone->parent_id = $model->id;
-        $clone->$date_field = $schedule_date->format('Y-m-d');
-        $clone->due_at = $schedule_date->copy()->addDays($diff_days)->format('Y-m-d');
-        $clone->save();
+        $model->type = $this->getRealType($template->type);
+        $model->parent_id = $template->id;
+        $model->issued_at = $schedule_date->format('Y-m-d');
+        $model->due_at = $schedule_date->copy()->addDays($diff_days)->format('Y-m-d');
+        $model->created_from = 'core::recurring';
+        $model->save();
 
-        return $clone;
+        return $model;
     }
 
-    /**
-     * Clone the transaction and return it.
-     *
-     * @param  $model
-     * @param  $schedule_date
-     *
-     * @return boolean|object
-     */
-    protected function getTransactionClone($model, $schedule_date)
+    protected function getTransactionModel(Transaction $template, Date $schedule_date): Transaction
     {
-        $model->cloneable_relations = [];
+        $template->cloneable_relations = [];
 
-        $clone = $model->duplicate();
+        $model = $template->duplicate();
 
-        $clone->parent_id = $model->id;
-        $clone->paid_at = $schedule_date->format('Y-m-d');
-        $clone->save();
+        $model->type = $this->getRealType($template->type);
+        $model->parent_id = $template->id;
+        $model->paid_at = $schedule_date->format('Y-m-d');
+        $model->created_from = 'core::recurring';
+        $model->save();
 
-        return $clone;
+        return $model;
     }
 
-    protected function skipThisClone($model, $schedule_date)
+    protected function getRemainingSchedules(Document|Transaction $template, Recurring $recur): RecurrenceCollection
     {
-        $date_field = $this->getDateField($model);
+        $date_field = $this->getDateField($template);
 
-        // Skip model created on the same day, but scheduler hasn't run yet
-        if ($schedule_date->equalTo(Date::parse($model->$date_field->format('Y-m-d')))) {
-            return true;
-        }
+        $created_schedules = DB::table($template->getTable())
+                                ->where('type', $this->getRealType($template->type))
+                                ->where('parent_id', $template->id)
+                                ->get($date_field)
+                                ->transform(function ($item, $key) use ($date_field) {
+                                    return Date::parse($item->$date_field)->format('Y-m-d');
+                                })
+                                ->toArray();
 
-        $table = $this->getTable($model);
+        // Skip already created schedules
+        $schedules = $recur->getRecurringSchedule()->filter(function ($recurrence) use ($created_schedules) {
+            return ! in_array($recurrence->getStart()->format('Y-m-d'), $created_schedules);
+        });
 
-        $already_cloned = \DB::table($table)
-                                ->where('parent_id', $model->id)
-                                ->whereDate($date_field, $schedule_date)
-                                ->value('id');
-
-        // Skip if already cloned
-        if ($already_cloned) {
-            return true;
-        }
-
-        return false;
+        return $schedules;
     }
 
-    protected function getChildrenCount($model)
+    protected function getDateField(Document|Transaction $template): string
     {
-        $table = $this->getTable($model);
-
-        return \DB::table($table)
-            ->where('parent_id', $model->id)
-            ->count();
+        return ($template instanceof Transaction) ? 'paid_at' : 'issued_at';
     }
 
-    protected function getDateField($model)
+    public function getRealType(string $recurring_type): string
     {
-        if ($model instanceof Transaction) {
-            return 'paid_at';
-        }
-
-        if ($model instanceof Document) {
-            return 'issued_at';
-        }
-    }
-
-    protected function getTable($model)
-    {
-        if ($model instanceof Transaction) {
-            return 'transactions';
-        }
-
-        if ($model instanceof Document) {
-            return 'documents';
-        }
+        return Str::replace('-recurring', '', $recurring_type);
     }
 }

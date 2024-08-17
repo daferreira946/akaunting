@@ -4,11 +4,13 @@ namespace App\Models\Banking;
 
 use App\Abstracts\Model;
 use App\Traits\Transactions;
+use App\Utilities\Str;
+use Bkwld\Cloner\Cloneable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Account extends Model
 {
-    use HasFactory, Transactions;
+    use Cloneable, HasFactory, Transactions;
 
     protected $table = 'accounts';
 
@@ -17,14 +19,14 @@ class Account extends Model
      *
      * @var array
      */
-    protected $appends = ['balance'];
+    protected $appends = ['balance', 'title', 'initials'];
 
     /**
      * Attributes that should be mass-assignable.
      *
      * @var array
      */
-    protected $fillable = ['company_id', 'name', 'number', 'currency_code', 'opening_balance', 'bank_name', 'bank_phone', 'bank_address', 'enabled'];
+    protected $fillable = ['company_id', 'type', 'name', 'number', 'currency_code', 'opening_balance', 'bank_name', 'bank_phone', 'bank_address', 'enabled', 'created_from', 'created_by'];
 
     /**
      * The attributes that should be cast.
@@ -32,8 +34,9 @@ class Account extends Model
      * @var array
      */
     protected $casts = [
-        'opening_balance' => 'double',
-        'enabled' => 'boolean',
+        'opening_balance'   => 'double',
+        'enabled'           => 'boolean',
+        'deleted_at'        => 'datetime',
     ];
 
     /**
@@ -41,7 +44,7 @@ class Account extends Model
      *
      * @var array
      */
-    public $sortable = ['name', 'number', 'opening_balance', 'enabled'];
+    public $sortable = ['name', 'number', 'balance', 'bank_name', 'bank_phone'];
 
     public function currency()
     {
@@ -50,17 +53,22 @@ class Account extends Model
 
     public function expense_transactions()
     {
-        return $this->transactions()->whereIn('type', (array) $this->getExpenseTypes());
+        return $this->transactions()->whereIn('transactions.type', (array) $this->getExpenseTypes());
     }
 
     public function income_transactions()
     {
-        return $this->transactions()->whereIn('type', (array) $this->getIncomeTypes());
+        return $this->transactions()->whereIn('transactions.type', (array) $this->getIncomeTypes());
     }
 
     public function transactions()
     {
         return $this->hasMany('App\Models\Banking\Transaction');
+    }
+
+    public function reconciliations()
+    {
+        return $this->hasMany('App\Models\Banking\Reconciliation');
     }
 
     public function scopeName($query, $name)
@@ -71,6 +79,40 @@ class Account extends Model
     public function scopeNumber($query, $number)
     {
         return $query->where('number', '=', $number);
+    }
+
+    /**
+     * Sort by balance
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param $direction
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function balanceSortable($query, $direction)
+    {
+        return $query//->join('transactions', 'transactions.account_id', '=', 'accounts.id')
+            ->orderBy('balance', $direction)
+            ->select(['accounts.*', 'accounts.opening_balance as balance']);
+    }
+
+    /**
+     * Get the name with currency.
+     *
+     * @return string
+     */
+    public function getTitleAttribute()
+    {
+        if (! empty($this->currency) && ! empty($this->currency->symbol)) {
+            return $this->name . ' (' . $this->currency->symbol . ')';
+        }
+
+        return $this->name;
+    }
+
+    public function getInitialsAttribute($value)
+    {
+        return Str::getInitials($this->name);
     }
 
     /**
@@ -90,6 +132,83 @@ class Account extends Model
         $total -= $this->expense_transactions->sum('amount');
 
         return $total;
+    }
+
+    /**
+     * Get the current balance.
+     *
+     * @return string
+     */
+    public function getIncomeBalanceAttribute()
+    {
+        // Opening Balance
+        //$total = $this->opening_balance;
+        $total = 0;
+
+        // Sum Incomes
+        $total += $this->income_transactions->sum('amount');
+
+        return $total;
+    }
+
+    /**
+     * Get the current balance.
+     *
+     * @return string
+     */
+    public function getExpenseBalanceAttribute()
+    {
+        // Opening Balance
+        //$total = $this->opening_balance;
+        $total = 0;
+
+        // Subtract Expenses
+        $total += $this->expense_transactions->sum('amount');
+
+        return $total;
+    }
+
+    /**
+     * Get the line actions.
+     *
+     * @return array
+     */
+    public function getLineActionsAttribute()
+    {
+        $actions = [];
+
+        $actions[] = [
+            'title' => trans('general.show'),
+            'icon' => 'visibility',
+            'url' => route('accounts.show', $this->id),
+            'permission' => 'read-banking-accounts',
+            'attributes' => [
+                'id' => 'index-line-actions-show-account-' . $this->id,
+            ],
+        ];
+
+        $actions[] = [
+            'title' => trans('general.edit'),
+            'icon' => 'edit',
+            'url' => route('accounts.edit', $this->id),
+            'permission' => 'update-banking-accounts',
+            'attributes' => [
+                'id' => 'index-line-actions-edit-account-' . $this->id,
+            ],
+        ];
+
+        $actions[] = [
+            'type' => 'delete',
+            'icon' => 'delete',
+            'route' => 'accounts.destroy',
+            'permission' => 'delete-banking-accounts',
+            'model' => $this,
+            'attributes' => [
+                'id' => 'index-line-actions-delete-account-' . $this->id,
+            ],
+        ];
+
+        return $actions;
     }
 
     /**

@@ -7,16 +7,6 @@ use App\Abstracts\Http\FormRequest;
 class Dashboard extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array
@@ -25,6 +15,7 @@ class Dashboard extends FormRequest
     {
         return [
             'name' => 'required|string',
+            'users' => 'required|array',
             //'enabled' => 'integer|boolean',
         ];
     }

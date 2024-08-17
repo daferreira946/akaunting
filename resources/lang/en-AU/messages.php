@@ -8,9 +8,16 @@ return [
         'deleted'           => ':type deleted!',
         'duplicated'        => ':type duplicated!',
         'imported'          => ':type imported!',
+        'import_queued'     => ':type import has been scheduled! You will receive an email when it is finished.',
         'exported'          => ':type exported!',
+        'export_queued'     => ':type export has been scheduled! You will receive an email when it is ready to download.',
         'enabled'           => ':type enabled!',
         'disabled'          => ':type disabled!',
+        'connected'         => ':type connected!',
+        'invited'           => ':type invited!',
+        'ended'             => ':type ended!',
+
+        'clear_all'         => 'Great! You\'ve cleared all of your :type.',
     ],
 
     'error' => [
@@ -23,6 +30,8 @@ return [
         'invalid_apikey'    => 'Error: The API Key entered is invalid!',
         'import_column'     => 'Error: :message Sheet name: :sheet. Line number: :line.',
         'import_sheet'      => 'Error: Sheet name is not valid. Please, check the sample file.',
+        'same_amount'       => 'Error: The total amount of split must be exactly the same as the :transaction total: :amount',
+        'over_match'        => 'Error: :type not connected! The amount you entered can not exceed the payment total: :amount',
     ],
 
     'warning' => [
@@ -32,6 +41,7 @@ return [
         'reconciled_doc'    => 'Warning: You are not allowed to change/delete :type because it has reconciled transactions!',
         'disable_code'      => 'Warning: You are not allowed to disable or change the currency of <b>:name</b> because it has :text related.',
         'payment_cancel'    => 'Warning: You have cancelled your recent :method payment!',
+        'missing_transfer'  => 'Warning: The transfer related to this transaction is missing. You should consider deleting this transaction.',
     ],
 
 ];

@@ -21,8 +21,11 @@ class Account extends Factory
      */
     public function definition()
     {
+        $types = ['bank', 'credit_card'];
+
         return [
             'company_id' => $this->company->id,
+            'type' => $this->faker->randomElement($types),
             'name' => $this->faker->text(15),
             'number' => (string) $this->faker->iban(),
             'currency_code' => $this->company->currencies()->enabled()->get()->random(1)->pluck('code')->first(),
@@ -31,6 +34,7 @@ class Account extends Factory
             'bank_phone' => $this->faker->phoneNumber,
             'bank_address' => $this->faker->address,
             'enabled' => $this->faker->boolean ? 1 : 0,
+            'created_from' => 'core::factory',
         ];
     }
 
@@ -66,7 +70,7 @@ class Account extends Factory
     public function default_currency()
     {
         return $this->state([
-            'currency_code' => setting('default.currency'),
+            'currency_code' => default_currency(),
         ]);
     }
 }

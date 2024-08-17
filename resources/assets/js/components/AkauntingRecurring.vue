@@ -1,67 +1,150 @@
 <template>
-    <div class="row pr-0" :class="formClasses">
-        <base-input :label="title"
-            name="recurring_frequency"
-            :class="frequencyClasses"
-            :error="frequencyError">
-            <el-select v-model="recurring_frequency" @input="change" filterable
-                :placeholder="placeholder">
-                <template slot="prefix">
-                    <span class="el-input__suffix-inner el-select-icon">
-                        <i :class="'el-input__icon el-icon-refresh'"></i>
-                    </span>
-                </template>
+    <div class="sm:col-span-6 space-y-6 sm:space-y-2">
+        <div class="flex flex-wrap lg:flex-nowrap items-start space-y-1 lg:space-y-0" :class="{ 'justify-start': frequency == 'custom' }">
+            <div class="w-24 sm:w-60 px-0 sm:px-2 text-sm pt-4">
+                {{ frequencyText }}
+            </div>
 
-                <el-option v-for="(label, value) in frequencyOptions"
-                :key="label"
+            <el-select class="w-36" v-model="frequency" @input="change">
+                <el-option
+                v-for="(label, value) in frequencies"
+                :key="value"
                 :label="label"
                 :value="value">
                 </el-option>
             </el-select>
-        </base-input>
 
-        <base-input :label="''"
-            name="recurring_interval"
-            type="number"
-            :value="0"
-            @input="change"
-            class="recurring-single"
-            :class="invertalClasses"
-            :error="intervalError"
-            v-model="recurring_interval"
-            >
-        </base-input>
+            <div class="w-24 px-2 text-sm text-center pt-4" v-if="frequency == 'custom'">
+                {{ frequencyEveryText }}
+            </div>
 
-        <base-input :label="''"
-            name="recurring_custom_frequency"
-            class="recurring-single"
-            :class="customFrequencyClasses"
-            :error="customFrequencyError">
-            <el-select v-model="recurring_custom_frequency" @input="change" filterable
-                :placeholder="placeholder">
-                <el-option v-for="(label, value) in customFrequencyOptions"
-                :key="label"
+            <div class="flex flex-col">
+                <input type="text" class="w-20 text-sm px-3 py-2.5 mt-1 rounded-lg border border-light-gray text-black placeholder-light-gray bg-white disabled:bg-gray-200 focus:outline-none focus:ring-transparent focus:border-purple" v-model="interval" @input="change" v-if="frequency == 'custom'">
+                <div class="text-red text-sm mt-1 block w-36" v-if="invertalError" v-html="invertalError"></div>
+            </div>
+
+            <el-select class="w-36" v-model="customFrequency" @input="change" v-if="frequency == 'custom'" v-bind:class="invertalError ? '-ml-14' : 'ml-2' ">
+                <el-option
+                v-for="(label, value) in customFrequencies"
+                :key="value"
                 :label="label"
                 :value="value">
                 </el-option>
             </el-select>
-        </base-input>
 
-        <base-input :label="''"
-            name="recurring_count"
-            type="number"
-            :value="0"
-            @input="change"
-            class="recurring-single"
-            :class="countClasses"
-            :error="countError"
-            v-model="recurring_count">
-        </base-input>
+            <div class="text-red text-sm mt-1 block w-36" v-if="customFrequencyError" v-html="customFrequencyError"></div>
+        </div>
+
+        <div class="flex flex-wrap lg:flex-nowrap items-start space-y-3 lg:space-y-0 pt-4" :class="{ 'justify-start': limit !== 'never' }">
+            <div class="w-24 sm:w-60 px-0 sm:px-2 text-sm pt-4">
+                {{ startText }}
+            </div>
+
+            <div>
+                    <el-date-picker
+                    class="w-36 cursor-pointer recurring-invoice-data"
+                    v-model="started_at"
+                    @input="change"
+                    type="date"
+                    align="right"
+                    :format="formatDate"
+                    value-format="yyyy-MM-dd"
+                    :picker-options="{
+                        disabledDate(time) {
+                            return time.getTime() < Date.now();
+                        },
+                        shortcuts: [
+                            {
+                                text: dateRangeText['today'],
+                                onClick(picker) {
+                                    picker.$emit('pick', new Date());
+                                }
+                            },
+                            {
+                                text: dateRangeText['yesterday'],
+                                onClick(picker) {
+                                    const date = new Date();
+                                    date.setTime(date.getTime() - 3600 * 1000 * 24);
+
+                                    picker.$emit('pick', date);
+                                }
+                            },
+                            {
+                                text: dateRangeText['week_ago'],
+                                onClick(picker) {
+                                    const date = new Date();
+                                    date.setTime(date.getTime() - 3600 * 1000 * 24 * 7);
+
+                                    picker.$emit('pick', date);
+                                }
+                            }
+                        ]
+                    }">
+                    </el-date-picker>
+
+                <div class="text-red text-sm mt-1 block w-36" v-if="startedError" v-html="startedError"></div>
+
+            </div>
+
+            <div class="w-24 px-2 text-sm text-center pt-4">
+                {{ middleText }}
+            </div>
+
+            <el-select class="w-20" v-model="limit" @input="change">
+                <el-option
+                v-for="(label, value) in limits"
+                :key="value"
+                :label="label"
+                :value="value">
+                </el-option>
+            </el-select>
+
+            <div class="flex flex-col">
+                <input type="text" class="w-20 cursor-pointer text-sm px-3 py-2.5 mt-1 ml-2 rounded-lg border border-light-gray text-black placeholder-light-gray bg-white disabled:bg-gray-200 focus:outline-none focus:ring-transparent focus:border-purple" v-model="limitCount" v-if="limit == 'after'" @input="change">
+                <div class="text-red text-sm mt-1 ml-2 block w-36" v-show="limitCountError" v-html="limitCountError"></div>
+            </div>
+
+            <div class="pl-2 pt-4 text-sm" v-if="limit == 'after'" v-bind:class="limitCountError ? '-ml-16' : ''">
+                {{ endText }}
+            </div>
+
+            <div class="flex flex-col">
+                    <el-date-picker
+                    class="w-36 ml-2 cursor-pointer recurring-invoice-data"
+                    v-model="limitDate"
+                    type="date"
+                    align="right"
+                    :format="formatDate"
+                    value-format="yyyy-MM-dd"
+                    v-if="limit == 'on'"
+                    @input="change"
+                >
+                </el-date-picker>
+
+                <div class="text-red text-sm mt-1 ml-2 block w-36" v-if="limitDateError" v-html="limitDateError"></div>
+            </div>
+        </div>
+
+        <div v-if="sendEmailShow" class="flex flex-wrap lg:flex-nowrap items-center space-y-1 lg:space-y-0 pt-6">
+            <div class="w-24 sm:w-60 px-0 sm:px-2 text-sm">
+                {{ sendEmailText }}
+            </div>
+
+            <div class="flex items-center mt-1">
+                <label @click="sendEmail=1;change();" v-bind:class="[sendEmail == 1 ? ['bg-green-500','text-white'] : 'bg-black-100']" class="relative w-10 ltr:rounded-tl-lg ltr:rounded-bl-lg rtl:rounded-tr-lg rtl:rounded-br-lg py-2 px-1 text-sm text-center transition-all cursor-pointer">
+                    {{ sendEmailYesText }}
+                </label>
+
+                <label @click="sendEmail=0;change();"v-bind:class="[sendEmail == 0 ? ['bg-red-500','text-white'] : 'bg-black-100']" class="relative w-10 ltr:rounded-tr-lg ltr:rounded-br-lg rtl:rounded-tl-lg rtl:rounded-bl-lg py-2 px-1 text-sm text-center transition-all cursor-pointer">
+                    {{ sendEmailNoText }}
+                </label>
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
-import { Select, Option } from 'element-ui'
+import { Select, Option, DatePicker } from 'element-ui';
 
 export default {
     name: 'akaunting-recurring',
@@ -69,118 +152,243 @@ export default {
     components: {
         [Select.name]: Select,
         [Option.name]: Option,
+        [DatePicker.name]: DatePicker,
     },
 
     props: {
-        title: {
+        startText: {
             type: String,
-            default: '',
-            description: "Modal header title"
+            default: 'Create first invoice on',
+            description: "Default reccuring text"
         },
-        placeholder: {
+        dateRangeText: {
+            type: Object,
+            default: {
+                today : 'Today',
+                yesterday : 'Yesterday',
+                week_ago : 'A week ago',
+            },
+            description: "Default reccuring text"
+        },
+        middleText: {
             type: String,
-            default: '',
-            description: "Modal header title"
+            default: 'and end',
+            description: "Default reccuring text"
         },
-        formClasses: {
-            default: 'col-md-6',
+        endText: {
+            type: String,
+            default: 'invoices',
+            description: "Default reccuring text"
         },
-        formError: null,
-
-        frequencyOptions: null,
-        frequencyValue: null,
-        frequencyError: null,
-
+        frequencies: null,
+        frequencyText: {
+            type: String,
+            default: 'Repeat this invoice',
+            description: "Default reccuring text"
+        },
+        frequencyEveryText: {
+            type: String,
+            default: 'every',
+            description: "Default reccuring text"
+        },
+        frequencyValue: {
+            type: String,
+            default: 'monthly',
+            description: "Default reccuring type"
+        },
         intervalValue: {
-            type: [Number, String],	
-            default: 0,	
-            description: "Default interval value"	
-        },
-        intervalError: null,
-
-        customFrequencyOptions: null,
-        customFrequencyValue: null,
-        customFrequencyError: null,
-
-        countValue: {
-            type: [Number, String],	
-            default: 0,	
-            description: "Default count value"	
-        },
-        countError: null,
-
-        icon: {
             type: String,
-            description: "Prepend icon (left)"
+            default: '',
+            description: 'Default interval value'
+        },
+        invertalError: {
+            type: String,
+            default: null,
+            description: "Selectbox input error message"
+        },
+
+        customFrequencies: null,
+        customFrequencyValue: {
+            type: String,
+            default: 'monthly',
+            description: "Default reccuring type"
+        },
+        customFrequencyError: {
+            type: String,
+            default: null,
+            description: "Selectbox input error message"
+        },
+
+        startedValue: {
+            type: String,
+            default: 'never',
+            description: "Default reccuring limit"
+        },
+        startedError: {
+            type: String,
+            default: null,
+            description: "Selectbox input error message"
+        },
+
+        limits: null,
+
+        limitValue: {
+            type: String,
+            default: 'never',
+            description: "Default reccuring limit"
+        },
+
+        limitCountValue: {
+            type: [Number, String],
+            default: 0,
+            description: "Default reccuring limit"
+        },
+        limitCountError: {
+            type: String,
+            default: null,
+            description: "Selectbox input error message"
+        },
+
+        limitDateValue: {
+            type: String,
+            default: '',
+            description: "Default reccuring limit"
+        },
+        limitDateError: {
+            type: String,
+            default: null,
+            description: "Selectbox input error message"
+        },
+
+        dateFormat: {
+            type: String,
+            default: 'dd MM yyyy',
+            description: "Default date format"
+        },
+
+        sendEmailShow: {
+            type: [String, Number, Array, Object, Boolean],
+            default: '1',
+            description: "Created recurring model send automatically option"
+        },
+        sendEmailText: {
+            type: String,
+            default: 'Send email automatically',
+            description: "Created recurring model send automatically option"
+        },
+        sendEmailYesText: {
+            type: String,
+            default: 'Yes',
+            description: "Send email option yes text"
+        },
+        sendEmailNoText: {
+            type: String,
+            default: 'No',
+            description: "Send email option no text"
+        },
+        sendEmailValue: {
+            type: [Number, String],
+            default: 0,
+            description: "Send Email value"
         }
     },
 
     data() {
         return {
-            recurring_frequency: null,
-            recurring_interval: null,
-            recurring_custom_frequency: null,
-            recurring_count: null,
-            frequencyClasses: 'col-md-12',
-            invertalClasses: 'col-md-2 d-none',
-            customFrequencyClasses: 'col-md-4 d-none',
-            countClasses: 'col-md-2 d-none'
+            frequency: '',
+            interval: '',
+            customFrequency: '',
+            started_at: '',
+            limit: '',
+            limitCount: 0,
+            limitDate: '',
+            formatDate: 'dd MM YYYY',
+            sendEmail: 0,
         }
     },
 
-    created() {	
-        this.recurring_frequency = this.frequencyValue;	
-        this.recurring_interval = this.intervalValue;	
-        this.recurring_custom_frequency = this.customFrequencyValue;	
-        this.recurring_count = this.countValue;	
+    created() {
+        this.formatDate = this.convertToDarteFormat(this.dateFormat);
     },
 
     mounted() {
-        this.recurring_frequency = this.frequencyValue;
+        this.frequency = this.frequencyValue;
+        this.interval = this.intervalValue;
+        this.customFrequency = this.customFrequencyValue;
+        this.started_at = this.startedValue;
 
-        if (this.recurring_frequency != 'custom') {
-            this.recurring_custom_frequency = '';
-            this.recurring_interval = '0';
+        this.limit = this.limitValue;
+        this.limitCount = this.limitCountValue;
+        this.limitDate = this.limitDateValue;
+
+        if (this.limit == 'count') {
+            if (this.limitCount > 0) {
+                this.limit = 'after';
+            } else {
+                this.limit = 'never';
+            }
+        } else {
+            this.limit = 'on';
         }
 
-        this.frequencyChanges();
+        this.sendEmail = this.sendEmailValue;
 
-        this.$emit('recurring_frequency', this.recurring_frequency);
-        this.$emit('recurring_interval', this.recurring_interval);
-        this.$emit('recurring_custom_frequency', this.recurring_custom_frequency);
-        this.$emit('recurring_count', this.recurring_count);
+        setTimeout(function() {
+            this.change();
+        }.bind(this), 800);
     },
 
     methods: {
         change() {
-            this.$emit('change', this.recurring_frequency);
+            this.$emit('change', this.frequency);
 
-            this.$emit('recurring_frequency', this.recurring_frequency);
-            this.$emit('recurring_interval', this.recurring_interval);
-            this.$emit('recurring_custom_frequency', this.recurring_custom_frequency);
-            this.$emit('recurring_count', this.recurring_count);
+            this.$emit('frequency', this.frequency);
+            this.$emit('interval', this.interval);
+            this.$emit('custom_frequency', this.customFrequency);
+            this.$emit('started', this.started_at);
 
-            this.frequencyChanges();
+            switch (this.limit) {
+                case 'after':
+                    this.$emit('limit', 'count');
+                    this.$emit('limit_count', this.limitCount);
+                    this.$emit('limit_date', null);
+
+                    this.limitDateError = '';
+                    break;
+                case 'on':
+                    this.$emit('limit', 'date');
+                    this.$emit('limit_date', this.limitDate);
+                    this.$emit('limit_count', 0);
+
+                    this.limitCountError = '';
+                    break;
+                case 'never':
+                default:
+                    this.$emit('limit', 'count');
+                    this.$emit('limit_count', 0);
+
+                    this.limitCountError = '';
+                    this.limitDateError = '';
+                    break;
+            }
+
+            this.$emit('send_email', this.sendEmail);
         },
 
-        frequencyChanges() {
-            if (this.recurring_frequency == 'custom') {
-                this.frequencyClasses = 'col-md-4';
-                this.invertalClasses = 'col-md-2';
-                this.customFrequencyClasses = 'col-md-4';
-                this.countClasses = 'col-md-2 pr-0';
-            } else if (this.recurring_frequency == 'no' || this.recurring_frequency == '') {
-                this.frequencyClasses = 'col-md-12 pr-0';
-                this.invertalClasses = 'col-md-2 d-none';
-                this.customFrequencyClasses = 'col-md-4 d-none';
-                this.countClasses = 'col-md-2 d-none';
-            } else {
-                this.frequencyClasses = 'col-md-10';
-                this.invertalClasses = 'col-md-2 d-none';
-                this.customFrequencyClasses = 'col-md-4 d-none';
-                this.countClasses = 'col-md-2 pr-0';
-            }
-        }
+        convertToDarteFormat(format) {
+            return format.replace('d', 'dd')
+                .replace('M', 'MMM')
+                .replace('m', 'MM')
+                .replace('F', 'MMMM')
+                .replace('y', 'yyyy')
+                .replace('Y', 'yyyy');
+        },
     }
 }
 </script>
+
+<style>
+    .el-input__inner {
+        height: 42px;
+    }
+</style>

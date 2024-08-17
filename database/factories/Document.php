@@ -9,17 +9,21 @@ use App\Events\Document\DocumentReceived;
 use App\Events\Document\DocumentSent;
 use App\Events\Document\DocumentViewed;
 use App\Events\Document\PaymentReceived;
+use App\Interfaces\Utility\DocumentNumber;
 use App\Jobs\Document\UpdateDocument;
 use App\Models\Common\Contact;
 use App\Models\Common\Item;
 use App\Models\Document\Document as Model;
 use App\Models\Setting\Tax;
+use App\Traits\Documents;
 use App\Utilities\Date;
 use App\Utilities\Overrider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class Document extends AbstractFactory
 {
+    use Documents;
+
     /**
      * The name of the factory's corresponding model.
      *
@@ -35,16 +39,17 @@ class Document extends AbstractFactory
     public function definition()
     {
         $issued_at = $this->faker->dateTimeBetween(now()->startOfYear(), now()->endOfYear())->format('Y-m-d H:i:s');
-        $due_at = Date::parse($issued_at)->addDays($this->faker->randomNumber(3))->format('Y-m-d H:i:s');
+        $due_at = Date::parse($issued_at)->addDays($this->faker->randomNumber(2))->format('Y-m-d H:i:s');
 
         return [
             'company_id' => $this->company->id,
             'issued_at' => $issued_at,
             'due_at' => $due_at,
-            'currency_code' => setting('default.currency'),
+            'currency_code' => default_currency(),
             'currency_rate' => '1',
             'notes' => $this->faker->text(5),
             'amount' => '0',
+            'created_from' => 'core::factory',
         ];
     }
 
@@ -66,7 +71,7 @@ class Document extends AbstractFactory
 
             return [
                 'type' => Model::INVOICE_TYPE,
-                'document_number' => setting('invoice.number_prefix') . $this->faker->randomNumber(setting('invoice.number_digit')),
+                'document_number' => $this->getDocumentNumber(Model::INVOICE_TYPE, $contact),
                 'category_id' => $this->company->categories()->income()->get()->random(1)->pluck('id')->first(),
                 'contact_id' => $contact->id,
                 'contact_name' => $contact->name,
@@ -97,7 +102,7 @@ class Document extends AbstractFactory
 
             return [
                 'type' => Model::BILL_TYPE,
-                'document_number' => setting('bill.number_prefix') . $this->faker->randomNumber(setting('bill.number_digit')),
+                'document_number' => $this->getDocumentNumber(Model::BILL_TYPE, $contact),
                 'category_id' => $this->company->categories()->expense()->get()->random(1)->pluck('id')->first(),
                 'contact_id' => $contact->id,
                 'contact_name' => $contact->name,
@@ -130,8 +135,8 @@ class Document extends AbstractFactory
     public function received()
     {
         return $this->state([
-                                'status' => 'received',
-                            ]);
+            'status' => 'received',
+        ]);
     }
 
     /**
@@ -201,11 +206,18 @@ class Document extends AbstractFactory
      */
     public function recurring()
     {
+        $type = $this->getRawAttribute('type') . '-recurring';
+
+        $contact = Contact::find($this->getRawAttribute('contact_id'));
+
         return $this->state([
-            'recurring_frequency' => 'yes',
+            'type' => $type,
+            'document_number' => $this->getDocumentNumber($type, $contact),
+            'recurring_started_at' => $this->getRawAttribute('issued_at'),
+            'recurring_frequency' => 'daily',
             'recurring_interval' => '1',
-            'recurring_custom_frequency' => $this->faker->randomElement(['monthly', 'weekly']),
-            'recurring_count' => '1',
+            'recurring_limit_count' => '7',
+            'recurring_send_email' => '1',
         ]);
     }
 
@@ -216,43 +228,53 @@ class Document extends AbstractFactory
      */
     public function items()
     {
-        return $this->state(function (array $attributes) {
-            $amount = $this->faker->randomFloat(2, 1, 1000);
+        $amount = $this->faker->randomFloat(2, 1, 1000);
 
-            $taxes = Tax::enabled()->get();
+        $taxes = Tax::enabled()->get();
 
-            if ($taxes->count()) {
-                $tax = $taxes->random(1)->first();
-            } else {
-                $tax = Tax::factory()->enabled()->create();
-            }
+        if ($taxes->count()) {
+            $tax = $taxes->random(1)->first();
+        } else {
+            $tax = Tax::factory()->enabled()->create();
+        }
 
-            $items = Item::enabled()->get();
+        $items = Item::enabled()->get();
 
-            if ($items->count()) {
-                $item = $items->random(1)->first();
-            } else {
-                $item = Item::factory()->enabled()->create();
-            }
+        if ($items->count()) {
+            $item = $items->random(1)->first();
+        } else {
+            $item = Item::factory()->enabled()->create();
+        }
 
-            $items = [
-                [
-                    'type' => $attributes['type'],
-                    'name' => $item->name,
-                    'description' => $this->faker->text,
-                    'item_id' => $item->id,
-                    'tax_ids' => [$tax->id],
-                    'quantity' => '1',
-                    'price' => $amount,
-                    'currency' => setting('default.currency'),
-                ]
-            ];
+        $items = [
+            [
+                'type' => $this->getRawAttribute('type'),
+                'name' => $item->name,
+                'description' => $this->faker->text,
+                'item_id' => $item->id,
+                'tax_ids' => [$tax->id],
+                'quantity' => '1',
+                'price' => $amount,
+                'currency' => default_currency(),
+            ],
+        ];
 
-            return [
-                'items' => $items,
-                'recurring_frequency' => 'no',
-            ];
-        });
+        return $this->state(['items' => $items]);
+    }
+
+    /**
+     * Get document number
+     *
+     */
+    public function getDocumentNumber($type, Contact $contact)
+    {
+        $utility = app(DocumentNumber::class);
+
+        $document_number = $utility->getNextNumber($type, $contact);
+
+        $utility->increaseNextNumber($type, $contact);
+
+        return $document_number;
     }
 
     /**
@@ -291,6 +313,7 @@ class Document extends AbstractFactory
 
             $items = [
                 [
+                    'type' => $document->type,
                     'name' => $item->name,
                     'description' => $this->faker->text,
                     'item_id' => $item->id,
@@ -298,7 +321,7 @@ class Document extends AbstractFactory
                     'quantity' => '1',
                     'price' => $amount,
                     'currency' => $document->currency_code,
-                ]
+                ],
             ];
 
             $request = [
@@ -327,7 +350,7 @@ class Document extends AbstractFactory
                 case 'paid':
                     $payment_request = [
                         'paid_at' => $updated_document->due_at,
-                        'type' => config('type.' . $document->type . '.transaction_type'),
+                        'type' => config('type.document.' . $document->type . '.transaction_type'),
                     ];
 
                     if ($init_status === 'partial') {

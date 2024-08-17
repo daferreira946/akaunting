@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Abstracts\Http\Controller;
+use App\Events\Banking\TransactionPrinting;
 use App\Models\Banking\Transaction;
 use App\Models\Setting\Currency;
 use App\Http\Requests\Portal\PaymentShow as Request;
 use App\Utilities\Modules;
+use App\Traits\Transactions;
+use Illuminate\Support\Facades\URL;
 
 class Payments extends Controller
 {
+    use Transactions;
+
     /**
      * Display a listing of the resource.
      *
@@ -50,5 +55,72 @@ class Payments extends Controller
         $currencies = Currency::collect();
 
         return $this->response('portal.currencies.index', compact('currencies'));
+    }
+
+    /**
+     * Show the form for viewing the specified resource.
+     *
+     * @param  Transaction $payment
+     *
+     * @return Response
+     */
+    public function printPayment(Transaction $payment, Request $request)
+    {
+        event(new TransactionPrinting($payment));
+
+        $transaction = $payment;
+        $view = view('banking.transactions.print_default', compact('transaction'));
+
+        return mb_convert_encoding($view, 'HTML-ENTITIES', 'UTF-8');
+    }
+
+    /**
+     * Show the form for viewing the specified resource.
+     *
+     * @param  Transaction $payment
+     *
+     * @return Response
+     */
+    public function pdfPayment(Transaction $payment, Request $request)
+    {
+        event(new TransactionPrinting($payment));
+
+        $currency_style = true;
+
+        $transaction = $payment;
+        $view = view('banking.transactions.print_default', compact('transaction', 'currency_style'))->render();
+        $html = mb_convert_encoding($view, 'HTML-ENTITIES', 'UTF-8');
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadHTML($html);
+
+        //$pdf->setPaper('A4', 'portrait');
+
+        $file_name = $this->getTransactionFileName($payment);
+
+        return $pdf->download($file_name);
+    }
+
+    public function preview(Transaction $payment)
+    {
+        if (empty($payment)) {
+            return redirect()->route('login');
+        }
+
+        return view('portal.payments.preview', compact('payment'));
+    }
+
+    public function signed(Transaction $payment)
+    {
+        if (empty($payment)) {
+            return redirect()->route('login');
+        }
+
+        $payment_methods = Modules::getPaymentMethods();
+
+        $print_action = URL::signedRoute('signed.payments.print', [$payment->id]);
+        $pdf_action = URL::signedRoute('signed.payments.pdf', [$payment->id]);
+
+        return view('portal.payments.signed', compact('payment', 'payment_methods', 'print_action', 'pdf_action'));
     }
 }

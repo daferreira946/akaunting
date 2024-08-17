@@ -16,7 +16,7 @@ class Modules extends Controller
      */
     public function __construct()
     {
-        $alias = request()->segment(1);
+        $alias = request()->segment(2);
 
         // Add CRUD permission check
         $this->middleware('permission:create-' . $alias . '-settings')->only('create', 'store', 'duplicate', 'import');
@@ -72,7 +72,7 @@ class Modules extends Controller
             'error' => false,
             'message' => $message,
             'data' => null,
-            'redirect' => route('settings.index')//('settings/apps/' . $alias),
+            'redirect' => route('settings.module.edit', $alias)//('settings/apps/' . $alias),
         ];
 
         flash($message)->success();

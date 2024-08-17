@@ -1,121 +1,109 @@
 <template>
-    <div :id="'select-contact-card-' + _uid" class="document-add-body-form-contact ml-3">
-        <div class="document-contact" :class="[{'fs-exclude': show.contact_selected}]">
-            <div class="document-contact-without-contact">
-                <div v-if="!show.contact_selected" class="document-contact-without-contact-box-contact-select fs-exclude">
-                    <div class="aka-select aka-select--medium is-open" tabindex="0">
-                        <div>
-                            <div class="aka-box aka-box--large" :class="[{'aka-error': error}]">
-                                <div class="aka-box-content">
-                                    <div class="document-contact-without-contact-box">
-                                        <button type="button" class="btn-aka-link aka-btn--fluid document-contact-without-contact-box-btn" @click="onContactList">
-                                            <i class="far fa-user fa-2x"></i> &nbsp; {{ addContactText }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-if="error" class="invalid-feedback d-block mt--2 mb-2"
-                                v-html="error">
-                            </div>
+    <div :id="'select-contact-card-' + _uid">
+        <div class="relative" :class="[{'fs-exclude': show.contact_selected}]">
+            <div v-if="!show.contact_selected">
+                <div class="aka-select aka-select--medium is-open" tabindex="0">
+                    <div class="w-full h-33 bg-white hover:bg-gray-100 rounded-lg border border-light-gray disabled:bg-gray-200 mt-1 text-purple font-medium" :class="[{'border-red': error}]">
+                        <div class="text-black h-full">
+                            <button type="button" class="w-full h-full flex flex-col items-center justify-center" @click="onContactList">
+                                <span class="material-icons-outlined text-7xl text-black-400 pointer-events-none">person_add</span>
+                                <span class="text-add-contact pointer-events-none"> {{ addContactText }} </span>
+                            </button>
                         </div>
-                        
-                        <div class="aka-select-menu" v-if="show.contact_list">
-                            <div class="aka-select-search-container">
-                                <span class="aka-prefixed-input aka-prefixed-input--fluid">
-                                    <div class="input-group input-group-merge">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text">
-                                                <i class="fa fa-search"></i>
-                                            </span>
-                                        </div>
+                    </div>
 
-                                        <input 
-                                            type="text"
-                                            data-input="true"
-                                            class="form-control"
-                                            autocapitalize="default" autocorrect="ON" 
-                                            :placeholder="placeholder"
-                                            :ref="'input-contact-field-' + _uid"
-                                            v-model="search"
-                                            @input="onInput"
-                                            @keyup.enter="onInput"
-                                        />
-                                    </div>
-                                </span>
+                    <div v-if="error" class="text-red text-sm mt-1 block mb-2"
+                        v-html="error">
+                    </div>
+
+                    <div class="absolute top-0 left-0 right-0 bg-white border rounded-lg" style="z-index: 999;" v-if="show.contact_list">
+                        <div class="relative">
+                            <span class="material-icons-round absolute left-4 top-3 text-lg">search</span>
+                            <input
+                                type="text"
+                                data-input="true"
+                                class="w-full text-sm py-2.5 mt-1 border text-black placeholder-light-gray bg-white disabled:bg-gray-200 focus:outline-none focus:ring-transparent focus:border-purple px-10 border-t-0 border-l-0 border-r-0 border-gray-200 rounded-none"
+                                autocapitalize="default" autocorrect="ON"
+                                :placeholder="placeholder"
+                                :ref="'input-contact-field-' + _uid"
+                                :value="search"
+                                @input="onInput($event)"
+                                @keyup.enter="onInput($event)"
+                            />
+                        </div>
+
+                        <ul class="w-full text-sm rounded-lg border-light-gray text-black placeholder-light-gray bg-white disabled:bg-gray-200 focus:outline-none focus:ring-transparent focus:border-purple p-0 border-0 mt-0 cursor-pointer">
+                            <div class="hover:bg-gray-100 px-4 py-2" v-for="(contact, index) in sortContacts" :key="index" @click="onContactSeleted(index, contact.id)">
+                                <span>{{ contact.name }}</span>
                             </div>
-                            
-                            <ul class="aka-select-menu-options">
-                                <div class="aka-select-menu-option" v-for="(contact, index) in sortContacts" :key="index" @click="onContactSeleted(index, contact.id)">
-                                    <div>
-                                        <strong class="text-strong"><span>{{ contact.name }}</span></strong>
-                                    </div>
-                                </div>
 
-                                <div class="aka-select-menu-option" v-if="!sortContacts.length">
-                                    <div>
-                                        <strong class="text-strong" v-if="!contacts.length && !search"><span>{{ noDataText }}</span></strong>
+                            <div class="hover:bg-gray-100 px-4 py-2" v-if="!sortContacts.length">
+                                <div>
+                                    <span v-if="!contacts.length && !search">{{ noDataText }}</span>
 
-                                        <strong class="text-strong" v-else><span>{{ noMatchingDataText }}</span></strong>
-                                    </div>
+                                    <span v-else>{{ noMatchingDataText }}</span>
                                 </div>
-                            </ul>
-                            
-                            <div class="aka-select-footer" tabindex="0" @click="onContactCreate">
-                                <span>
-                                    <i class="fas fa-plus"></i> {{ createNewContactText }}
-                                </span>
                             </div>
+                        </ul>
+
+                        <div class="flex items-center justify-center h-11 text-sm text-center text-purple font-bold border border-l-0 border-r-0 border-b-0 rounded-bl-lg rounded-br-lg hover:bg-gray-100 cursor-pointer" tabindex="0" @click="onContactCreate">
+                            <span class="material-icons text-lg font-bold mr-1 mt-1">add</span>
+                            {{ createNewContactText }}
                         </div>
                     </div>
                 </div>
-                
-                <div v-else class="document-contact-with-contact-bill-to">
-                    <div>
-                        <span class="aka-text aka-text--block-label">{{ contactInfoText }}</span>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-borderless p-0">
-                            <tbody>
-                                <tr>
-                                    <th class="p-0">
-                                        <strong class="d-block">{{ contact.name }}</strong>
-                                    </th>
-                                </tr>
-                                <tr>
-                                    <th class="p-0">
+            </div>  
+            <div v-else class="document-contact-with-contact-bill-to">
+                <div>
+                    <span class="text-sm">{{ contactInfoText }}</span>
+                </div>  
+                <div class="overflow-x-visible mt-0">
+                    <table class="table table-borderless p-0">
+                        <tbody>
+                            <tr>
+                                <th class="font-medium text-left text-sm p-0">
+                                    <span class="block">{{ contact.name }}</span>
+                                </th>
+                            </tr>
+                            <tr v-if="contact.address">
+                                <th class="font-normal text-xs text-left p-0">
+                                    <div class="w-60 truncate">
                                         {{ contact.address }}
-                                    </th>
-                                </tr>
-                                <tr v-if="contact.tax_number">
-                                    <th class="p-0">
-                                        {{ taxNumberText }}: {{ contact.tax_number }}
-                                    </th>
-                                </tr>
-                                <tr v-if="contact.phone">
-                                    <th class="p-0">
-                                        {{ contact.phone }}
-                                    </th>
-                                </tr>
-                                <tr v-if="contact.email">
-                                    <th class="p-0">
-                                        {{ contact.email }}
-                                    </th>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <button type="button" class="btn btn-link p-0" @click="onContactEdit">
-                        {{ editContactText.replace(':contact_name', contact.name).replace(':field', contact.name) }}
-                    </button>&nbsp;•&nbsp;
-                    <button type="button" class="btn btn-link p-0" @click="onContactList">
-                        {{ chooseDifferentContactText }}
-                    </button>
+                                    </div>
+                                </th>
+                            </tr>
+                            <tr v-if="contact.location">
+                                <th class="font-normal text-sm text-left p-0" v-html="contact.location"></th>
+                            </tr>
+                            <tr v-if="contact.tax_number">
+                                <th class="font-normal text-xs text-left p-0">
+                                    {{ taxNumberText }}: {{ contact.tax_number }}
+                                </th>
+                            </tr>
+                            <tr v-if="contact.phone">
+                                <th class="font-normal text-xs text-left p-0">
+                                    {{ contact.phone }} &nbsp;
+                                    <span v-if="contact.email">
+                                    - {{ contact.email }}
+                                    </span>
+                                </th>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-
+            </div>  
+            <div :class="show.contact_selected ? 'flex' : 'hidden'" class="absolute flex-col mt-2">
+                <button type="button" class="p-0 text-xs text-purple ltr:text-left rtl:text-right" @click="onContactEdit">
+                    <span class="bg-no-repeat bg-0-2 bg-0-full hover:bg-full-2 bg-gradient-to-b from-transparent to-purple transition-backgroundSize">
+                        {{ editContactText.replace(':contact_name', contact.name).replace(':field', contact.name) }}
+                    </span>
+                </button>
+                <button type="button" class="p-0 text-xs text-purple ltr:text-left rtl:text-right" @click="onContactList">
+                    <span class="bg-no-repeat bg-0-2 bg-0-full hover:bg-full-2 bg-gradient-to-b from-transparent to-purple transition-backgroundSize">
+                        {{ chooseDifferentContactText }}
+                    </span>
+                </button>
+            </div>  
             <component v-bind:is="add_new_html" @submit="onSubmit" @cancel="onCancel"></component>
         </div>
     </div>
@@ -129,7 +117,7 @@ import { Select, Option, OptionGroup, ColorPicker } from 'element-ui';
 import AkauntingModalAddNew from './AkauntingModalAddNew';
 import AkauntingModal from './AkauntingModal';
 import AkauntingMoney from './AkauntingMoney';
-import AkauntingRadioGroup from './forms/AkauntingRadioGroup';
+import AkauntingRadioGroup from './AkauntingRadioGroup';
 import AkauntingSelect from './AkauntingSelect';
 import AkauntingDate from './AkauntingDate';
 
@@ -183,18 +171,24 @@ export default {
                     id: 0,
                     name: '',
                     email: '',
+                    has_email: '',
                     tax_number: '',
                     currency_code: '',
                     phone: '',
                     website: '',
                     address: '',
-                    reference: '' 
+                    city: '',
+                    zip_code:'',
+                    state:'',
+                    country:'',
+                    location:'',
+                    reference: ''
                 };
             },
             description: 'List of Contacts'
         },
         contacts: {
-            type: Array,
+            type: [Array, Object],
             default: () => [],
             description: 'List of Contacts'
         },
@@ -291,38 +285,54 @@ export default {
                 id: 0,
                 name: '',
                 email: '',
+                has_email: '',
                 tax_number: '',
                 currency_code: '',
                 phone: '',
                 website: '',
                 address: '',
-                reference: '' 
+                city: '',
+                zip_code: '',
+                state: '',
+                country: '',
+                location: '',
+                reference: ''
             });
         },
 
-        onInput() {
-            window.axios.get(this.searchRoute + '?search="' + this.search + '" limit:10')
+        onInput(event) {
+            this.search = event.target.value;
+
+            window.axios.get(this.searchRoute + '?search="' + this.search + '" enabled:1 limit:10')
             .then(response => {
                 this.contact_list = [];
 
                 let contacts = response.data.data;
 
                 contacts.forEach(function (contact, index) {
-                    this.contact_list.push({
-                        index: index,
-                        key: contact.id,
-                        value: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
-                        type: (contact.type) ? contact.type : 'customer',
-                        id: contact.id,
-                        name: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
-                        email: (contact.email) ? contact.email : '',
-                        tax_number: (contact.tax_number) ? contact.tax_number : '',
-                        currency_code: (contact.currency_code) ? contact.currency_code : '',
-                        phone: (contact.phone) ? contact.phone : '',
-                        website: (contact.website) ? contact.website : '',
-                        address: (contact.address) ? contact.address : '',
-                        reference: (contact.reference) ? contact.reference : '' 
-                    });
+                    if (contact.enabled) {
+                        this.contact_list.push({
+                            index: index,
+                            key: contact.id,
+                            value: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
+                            type: (contact.type) ? contact.type : 'customer',
+                            id: contact.id,
+                            name: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
+                            email: (contact.email) ? contact.email : '',
+                            has_email: (contact.has_email) ? contact.has_email : '',
+                            tax_number: (contact.tax_number) ? contact.tax_number : '',
+                            currency_code: (contact.currency_code) ? contact.currency_code : '',
+                            phone: (contact.phone) ? contact.phone : '',
+                            website: (contact.website) ? contact.website : '',
+                            address: (contact.address) ? contact.address : '',
+                            city: (contact.city) ? contact.city : '',
+                            zip_code: (contact.zip_code) ? contact.zip_code : '',
+                            state: (contact.state) ? contact.state : '',
+                            country: (contact.country) ? contact.country : '',
+                            location: (contact.location) ? contact.location : '',
+                            reference: (contact.reference) ? contact.reference : ''
+                        });
+                    }
                 }, this);
             })
             .catch(error => {
@@ -333,7 +343,11 @@ export default {
         },
 
         onContactSeleted(index, contact_id) {
-            this.contact = this.contact_list[index];
+            this.contact_list.forEach(function (contact, index) {
+                if (contact_id == contact.id) {
+                    this.contact = contact;
+                }
+            }, this);
 
             this.show.contact_list = false;
             this.show.contact_selected = true;
@@ -355,7 +369,7 @@ export default {
 
                 this.add_new_html = Vue.component('add-new-component', function (resolve, reject) {
                     resolve({
-                        template: '<div><akaunting-modal-add-new :show="add_new.show" @submit="onSubmit" @cancel="onCancel" :buttons="add_new.buttons" :title="add_new.text" :is_component=true :message="add_new.html"></akaunting-modal-add-new></div>',
+                        template: '<div><akaunting-modal-add-new modal-dialog-class="max-w-md" modal-position-top :show="add_new.show" @submit="onSubmit" @cancel="onCancel" :buttons="add_new.buttons" :title="add_new.text" :is_component=true :message="add_new.html"></akaunting-modal-add-new></div>',
 
                         components: {
                             [Select.name]: Select,
@@ -414,7 +428,7 @@ export default {
 
                 this.add_new_html = Vue.component('add-new-component', function (resolve, reject) {
                     resolve({
-                        template: '<div><akaunting-modal-add-new :show="add_new.show" @submit="onSubmit" @cancel="onCancel" :buttons="add_new.buttons" :title="add_new.text" :is_component=true :message="add_new.html"></akaunting-modal-add-new></div>',
+                        template: '<div><akaunting-modal-add-new modal-dialog-class="max-w-md" modal-position-top :show="add_new.show" @submit="onSubmit" @cancel="onCancel" :buttons="add_new.buttons" :title="add_new.text" :is_component=true :message="add_new.html"></akaunting-modal-add-new></div>',
 
                         components: {
                             [Select.name]: Select,
@@ -509,19 +523,38 @@ export default {
                     this.add_new.html = '';
                     this.add_new_html = null;
 
+                    this.contact_list.push({
+                        key: contact.id,
+                        value: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
+                        type: (contact.type) ? contact.type : 'customer',
+                        id: contact.id,
+                        name: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
+                        email: (contact.email) ? contact.email : '',
+                        has_email: (contact.has_email) ? contact.has_email : '',
+                        tax_number: (contact.tax_number) ? contact.tax_number : '',
+                        currency_code: (contact.currency_code) ? contact.currency_code : '',
+                        phone: (contact.phone) ? contact.phone : '',
+                        website: (contact.website) ? contact.website : '',
+                        address: (contact.address) ? contact.address : '',
+                        city: (contact.city) ? contact.city : '',
+                        zip_code: (contact.zip_code) ? contact.zip_code : '',
+                        state: (contact.state) ? contact.state : '',
+                        country: (contact.country) ? contact.country : '',
+                        location: (contact.location) ? contact.location : '',
+                        reference: (contact.reference) ? contact.reference : ''
+                    });
+                    
                     this.$emit('new', contact);
-
                     this.$emit('change', this.contact);
 
                     let documentClasses = document.body.classList;
 
-                    documentClasses.remove("modal-open");
+                    documentClasses.remove('overflow-y-hidden', 'overflow-overlay');
                 }
             })
             .catch(error => {
                 this.form.loading = false;
-
-                console.log(error);
+                this.form.errors.record(error.response.data.errors);
             });
         },
 
@@ -532,11 +565,11 @@ export default {
 
             let documentClasses = document.body.classList;
 
-            documentClasses.remove("modal-open");
+            documentClasses.remove('overflow-y-hidden', 'overflow-overlay');
         },
 
         closeIfClickedOutside(event) {
-            if (!document.getElementById('select-contact-card-' + this._uid).contains(event.target) && event.target.className != 'btn btn-link p-0') {
+            if (!document.getElementById('select-contact-card-' + this._uid).contains(event.target)) {
                 this.show.contact_list = false;
 
                 document.removeEventListener('click', this.closeIfClickedOutside);
@@ -558,12 +591,18 @@ export default {
                     id: key,
                     name: value,
                     email: '',
+                    has_email: '',
                     tax_number: '',
                     currency_code: '',
                     phone: '',
                     website: '',
                     address: '',
-                    reference: '' 
+                    city: '',
+                    zip_code: '',
+                    state: '',
+                    country: '',
+                    location: '',
+                    reference: ''
                 });
 
                 index++;
@@ -578,12 +617,18 @@ export default {
                     id: contact.id,
                     name: (contact.title) ? contact.title : (contact.display_name) ? contact.display_name : contact.name,
                     email: (contact.email) ? contact.email : '',
+                    has_email: (contact.has_email) ? contact.has_email : '',
                     tax_number: (contact.tax_number) ? contact.tax_number : '',
                     currency_code: (contact.currency_code) ? contact.currency_code : '',
                     phone: (contact.phone) ? contact.phone : '',
                     website: (contact.website) ? contact.website : '',
                     address: (contact.address) ? contact.address : '',
-                    reference: (contact.reference) ? contact.reference : '' 
+                    city: (contact.city) ? contact.city : '',
+                    zip_code: (contact.zip_code) ? contact.zip_code : '',
+                    state: (contact.state) ? contact.state : '',
+                    country: (contact.country) ? contact.country : '',
+                    location: (contact.location) ? contact.location : '',
+                    reference: (contact.reference) ? contact.reference : ''
                 });
             }, this);
         }
@@ -632,10 +677,3 @@ export default {
     },
 };
 </script>
-
-<style>
-    .aka-error, .aka-error:hover {
-        border-color: #ef3232 !important;
-        background-color: #fb634038;
-    }
-</style>

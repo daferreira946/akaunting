@@ -13,9 +13,6 @@ return [
 
     'currencies' => [
         'usd'               => 'Amerikanske Dollar',
-        'eur'               => 'Euro',
-        'gbp'               => 'Britiske pund',
-        'try'               => 'Tyrkiske Lira',
     ],
 
     'offline_payments' => [
@@ -24,7 +21,7 @@ return [
     ],
 
     'reports' => [
-        'income'            => 'Månedlig indkomst oversigt efter kategori',
+        'income'            => 'Månedlig indtægtsoversigt efter kategori',
         'expense'           => 'Månedlig udgiftsoversigt efter kategori',
         'income_expense'    => 'Månedlig Indkomstoversigt efter kategori',
         'tax'               => 'Kvartalsvis afgifts-oversigt',

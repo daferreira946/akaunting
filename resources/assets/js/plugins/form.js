@@ -104,15 +104,33 @@ export default class Form {
                         if (!this[form_element.getAttribute('data-field')][name].push) {
                             this[form_element.getAttribute('data-field')][name] = [this[form_element.getAttribute('data-field')][name]];
                         }
-    
+
                         if (form_element.checked) {
                             this[form_element.getAttribute('data-field')][name].push(form_element.value);
                         }
                     } else {
                         if (form_element.checked) {
-                            this[form_element.getAttribute('data-field')][name] = form_element.value;
+                            if (form_element.dataset.type != undefined) {
+                                if (form_element.dataset.type == 'multiple') {
+                                    this[name] = [];
+
+                                    this[form_element.getAttribute('data-field')][name].push(form_element.value);
+                                } else {
+                                    this[form_element.getAttribute('data-field')][name] = form_element.value;
+                                }
+                            } else {
+                                this[form_element.getAttribute('data-field')][name] = form_element.value;
+                            }
                         } else {
-                            this[form_element.getAttribute('data-field')][name] = [];
+                            if (form_element.dataset.type != undefined) {
+                                if (form_element.dataset.type == 'multiple') {
+                                    this[form_element.getAttribute('data-field')][name] = [];
+                                } else {
+                                    this[form_element.getAttribute('data-field')][name] = '';
+                                }
+                            } else {
+                                this[form_element.getAttribute('data-field')][name] = '';
+                            }
                         }
                     }
                 } else {
@@ -141,9 +159,28 @@ export default class Form {
                     }
                 } else {
                     if (form_element.checked) {
-                        this[name] = form_element.value;
+                        if (form_element.dataset.type != undefined) {
+                            if (form_element.dataset.type == 'multiple') {
+                                this[name] = [];
+
+                                this[name].push(form_element.value);
+                            } else {
+                                this[name] = form_element.value;
+                            }
+                        } else {
+                            this[name] = form_element.value;
+                        }
                     } else {
-                        this[name] = [];
+
+                        if (form_element.dataset.type != undefined) {
+                            if (form_element.dataset.type == 'multiple') {
+                                this[name] = [];
+                            } else {
+                                this[name] = '';
+                            }
+                        } else {
+                            this[name] = '';
+                        }
                     }
                 }
             } else {
@@ -346,7 +383,7 @@ export default class Form {
     }
 
     submit() {
-        FormData.prototype.appendRecursive = function(data, wrapper = null) {  
+        FormData.prototype.appendRecursive = function(data, wrapper = null) {
             for (var name in data) {
                 if (name == "previewElement" || name == "previewTemplate") {
                     continue;
@@ -389,6 +426,50 @@ export default class Form {
         .catch(this.onFail.bind(this));
     }
 
+    async asyncSubmit() {
+        FormData.prototype.appendRecursive = function(data, wrapper = null) {
+            for (var name in data) {
+                if (name == "previewElement" || name == "previewTemplate") {
+                    continue;
+                }
+
+                if (wrapper) {
+                    if ((typeof data[name] == 'object' || Array.isArray(data[name])) && ((data[name] instanceof File != true ) && (data[name] instanceof Blob != true))) {
+                        this.appendRecursive(data[name], wrapper + '[' + name + ']');
+                    } else {
+                        this.append(wrapper + '[' + name + ']', data[name]);
+                    }
+                } else {
+                    if ((typeof data[name] == 'object' || Array.isArray(data[name])) && ((data[name] instanceof File != true ) && (data[name] instanceof Blob != true))) {
+                        this.appendRecursive(data[name], name);
+                    } else {
+                        this.append(name, data[name]);
+                    }
+                }
+            }
+        };
+
+        this.loading = true;
+
+        let data = this.data();
+
+        let form_data = new FormData();
+        form_data.appendRecursive(data);
+
+        await window.axios({
+            method: this.method,
+            url: this.action,
+            data: form_data,
+            headers: {
+                'X-CSRF-TOKEN': window.Laravel.csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+        .then(this.onSuccess.bind(this))
+        .catch(this.onFail.bind(this));
+    }
+
     onSuccess(response) {
         this.errors.clear();
 
@@ -397,7 +478,14 @@ export default class Form {
         if (response.data.redirect) {
             this.loading = true;
 
+            // Empty hash because /sale/customer/1#transaction redirect to sale/invoice/create.
+            window.location.hash = '';
+
             window.location.href = response.data.redirect;
+
+            if (typeof window.location.hash != "undefined" && window.location.hash.length) {
+                location.reload();
+            }
         }
 
         this.response = response.data;
@@ -405,7 +493,16 @@ export default class Form {
 
     // Form fields check validation issue
     onFail(error) {
-        this.errors.record(error.response.data.errors);
+        if (error.request) {
+            if (error.request.status == 419) {
+                window.location.href = '';
+                return;
+            }
+        }
+
+        if (typeof this.errors != "undefined") {
+            this.errors.record(error.response.data.errors);
+        }
 
         this.loading = false;
     }

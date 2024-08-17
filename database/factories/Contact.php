@@ -25,20 +25,23 @@ class Contact extends Factory
     public function definition()
     {
         $types = array_merge($this->getCustomerTypes(), $this->getVendorTypes());
+        $countries = array_keys(trans('countries'));
 
         return [
             'company_id' => $this->company->id,
             'type' => $this->faker->randomElement($types),
             'name' => $this->faker->name,
-            'email' => $this->faker->unique()->safeEmail,
+            'email' => $this->faker->freeEmail,
             'user_id' => null,
             'tax_number' => $this->faker->randomNumber(9),
             'phone' => $this->faker->phoneNumber,
             'address' => $this->faker->address,
+            'country' => $this->faker->randomElement($countries),
             'website' => 'https://akaunting.com',
-            'currency_code' => setting('default.currency'),
+            'currency_code' => default_currency(),
             'reference' => $this->faker->text(5),
             'enabled' => $this->faker->boolean ? 1 : 0,
+            'created_from' => 'core::factory',
         ];
     }
 

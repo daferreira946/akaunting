@@ -7,7 +7,6 @@ use App\Http\Requests\Common\Contact as Request;
 use App\Models\Common\Contact;
 use App\Jobs\Common\CreateContact;
 use App\Jobs\Common\UpdateContact;
-use App\Models\Setting\Currency;
 
 class Customers extends Controller
 {
@@ -30,17 +29,13 @@ class Customers extends Controller
      */
     public function create()
     {
-        $currencies = Currency::enabled()->orderBy('name')->pluck('name', 'code')->toArray();
-
         $contact_selector = false;
 
         if (request()->has('contact_selector')) {
             $contact_selector = request()->get('contact_selector');
         }
 
-        $rand = rand();
-
-        $html = view('modals.customers.create', compact('currencies', 'contact_selector', 'rand'))->render();
+        $html = view('modals.customers.create', compact('contact_selector'))->render();
 
         return response()->json([
             'success' => true,
@@ -62,10 +57,9 @@ class Customers extends Controller
         $request['enabled'] = 1;
 
         $response = $this->ajaxDispatch(new CreateContact($request));
-        $this->ajaxDispatch(new UpdateContact($customer, $request));
 
         if ($response['success']) {
-            $response['message'] = trans('messages.success.added', ['type' => trans_choice('general.customers', 1)]);
+            $response['message'] = trans('messages.success.created', ['type' => trans_choice('general.customers', 1)]);
         }
 
         return response()->json($response);
@@ -80,17 +74,13 @@ class Customers extends Controller
      */
     public function edit(Contact $customer)
     {
-        $currencies = Currency::enabled()->pluck('name', 'code');
-
         $contact_selector = false;
 
         if (request()->has('contact_selector')) {
             $contact_selector = request()->get('contact_selector');
         }
 
-        $rand = rand();
-
-        $html = view('modals.customers.edit', compact('customer', 'currencies', 'contact_selector', 'rand'))->render();
+        $html = view('modals.customers.edit', compact('customer', 'contact_selector'))->render();
 
         return response()->json([
             'success' => true,

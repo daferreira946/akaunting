@@ -1,37 +1,44 @@
 <template>
     <SlideYUpTransition :duration="animationDuration">
-        <div class="modal fade"
+        <div class="modal fade w-full h-full fixed top-0 left-0 right-0 z-50 overflow-y-auto overflow-hidden modal-add-new fade justify-center"
             @click.self="closeModal"
-            :class="[{'show d-block': show}, {'d-none': !show}]"
+            :class="[modalPositionTop ? 'items-start' : 'items-center', {'show flex flex-wrap modal-background': show}, {'hidden': !show}]"
             v-show="show"
             tabindex="-1"
             role="dialog"
+            data-modal-handle
             :aria-hidden="!show">
-            <div class="modal-dialog" :class="modalDialogClass">
+            <div class="w-full my-10 m-auto flex flex-col px-2 sm:px-0" :class="modalDialogClass ? modalDialogClass : 'max-w-md'">
                 <slot name="modal-content">
-                    <div class="modal-content">
-                        <div class="card-header pb-2">
-                            <slot name="card-header">
-                                <h4 class="float-left"> {{ title }} </h4>
+                    <div class="bg-body rounded-lg modal-content">
+                        <div class="p-5">
+                            <div class="flex items-center justify-between border-b pb-5">
+                                <slot name="card-header">
+                                    <h4 class="text-base font-medium">
+                                        {{ title }}
+                                    </h4>
 
-                                <button type="button" class="close" @click="onCancel" aria-hidden="true">&times;</button>
-                            </slot>
+                                    <button type="button" class="text-lg" @click="onCancel" aria-hidden="true">
+                                        <span class="rounded-md border-b-2 px-2 py-1 text-sm bg-gray-100">esc</span>
+                                    </button>
+                                </slot>
+                            </div>
                         </div>
 
                         <slot name="modal-body">
-                            <div class="modal-body" v-html="message">
-                            </div>
+                            <div class="py-1 px-5" v-html="message"></div>
                         </slot>
 
-                        <div class="card-footer border-top-0 pt-0">
+                        <div class="p-5 border-gray-300">
                             <slot name="card-footer">
-                                <div class="float-right">
-                                    <button type="button" class="btn btn-outline-secondary" @click="onCancel">
-                                    {{ button_cancel }}
+                                <div class="flex items-center justify-end space-x-2 rtl:space-x-reverse">
+                                    <button type="button" class="px-6 py-1.5 hover:bg-gray-200 rounded-lg" @click="onCancel">
+                                        {{ button_cancel }}
                                     </button>
 
-                                    <button :disabled="form.loading" type="button" class="btn btn-danger button-submit" @click="onConfirm">
-                                        <div class="aka-loader"></div><span>{{ button_delete }}</span>
+                                    <button :disabled="form.loading" type="button" class="relative flex items-center justify-center bg-red hover:bg-red-700  px-6 py-1.5 text-base rounded-lg disabled:opacity-50 text-white" @click="onConfirm">
+                                        <i v-if="form.loading" class="animate-submit delay-[0.28s] absolute w-2 h-2 rounded-full left-0 right-0 -top-3.5 m-auto before:absolute before:w-2 before:h-2 before:rounded-full before:animate-submit before:delay-[0.14s] after:absolute after:w-2 after:h-2 after:rounded-full after:animate-submit before:-left-3.5 after:-right-3.5 after:delay-[0.42s]"></i>
+                                        <span :class="[{'opacity-0': form.loading}]">{{ button_delete }}</span>
                                     </button>
                                 </div>
                             </slot>
@@ -45,10 +52,11 @@
 
 <script>
 import { SlideYUpTransition } from "vue2-transitions";
-import AkauntingRadioGroup from './forms/AkauntingRadioGroup';
+import AkauntingRadioGroup from './AkauntingRadioGroup';
 import AkauntingSelect from './AkauntingSelect';
 import AkauntingDate from './AkauntingDate';
 import AkauntingRecurring from './AkauntingRecurring';
+import AkauntingMoney from './AkauntingMoney';
 
 export default {
     name: 'akaunting-modal',
@@ -58,11 +66,14 @@ export default {
         AkauntingRadioGroup,
         AkauntingSelect,
         AkauntingDate,
-        AkauntingRecurring
+        AkauntingRecurring,
+        AkauntingMoney,
     },
 
     props: {
-        show: Boolean,
+        show: {
+            type: Boolean,
+        },
         modalDialogClass: {
             type: String,
             default: '',
@@ -92,7 +103,12 @@ export default {
             type: Number,
             default: 800,
             description: "Modal transition duration"
-        }
+        },
+        modalPositionTop: {
+            type: Boolean,
+            default: false,
+            description: "Modal Body position Class"
+        },
     },
 
     data() {
@@ -110,8 +126,22 @@ export default {
         if (this.show) {
             let documentClasses = document.body.classList;
 
-            documentClasses.add("modal-open");
+            documentClasses.add('overflow-y-hidden', 'overflow-overlay');
         }
+
+        if (this.modalDialogClass) {
+            let modal_size = this.modalDialogClass.replace('modal-', 'max-w-screen-');
+
+            this.modalDialogClass = modal_size;
+        }
+    },
+
+    mounted() {
+        window.addEventListener('keyup',(e) => {
+            if (e.key === 'Escape') { 
+                this.onCancel();
+            }
+        });
     },
 
     methods: {
@@ -129,7 +159,7 @@ export default {
         onCancel() {
             let documentClasses = document.body.classList;
 
-            documentClasses.remove("modal-open");
+            documentClasses.remove('overflow-y-hidden', 'overflow-overlay');
 
             this.$emit("cancel");
         }
@@ -140,21 +170,11 @@ export default {
             let documentClasses = document.body.classList;
 
             if (val) {
-                documentClasses.add("modal-open");
+                documentClasses.add('overflow-y-hidden', 'overflow-overlay');
             } else {
-                documentClasses.remove("modal-open");
+                documentClasses.remove('overflow-y-hidden', 'overflow-overlay');
             }
         }
     }
 }
 </script>
-
-<style>
-    .modal.show {
-        background-color: rgba(0, 0, 0, 0.3);
-    }
-
-    .modal-md {
-        max-width: 650px;
-    }
-</style>

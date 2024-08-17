@@ -7,16 +7,6 @@ use App\Abstracts\Http\FormRequest;
 class InvoicePayment extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array
@@ -24,7 +14,7 @@ class InvoicePayment extends FormRequest
     public function rules()
     {
         return [
-            //'payment_method' => 'required|string',
+            //'payment_method' => 'required|string|payment_method',
         ];
     }
 }

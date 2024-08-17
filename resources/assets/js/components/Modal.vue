@@ -110,9 +110,9 @@
       show(val) {
         let documentClasses = document.body.classList;
         if (val) {
-          documentClasses.add("modal-open");
+          documentClasses.add('overflow-y-hidden', 'overflow-overlay');
         } else {
-          documentClasses.remove("modal-open");
+          documentClasses.remove('overflow-y-hidden', 'overflow-overlay');
         }
       }
     }

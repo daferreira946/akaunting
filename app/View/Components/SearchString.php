@@ -2,26 +2,37 @@
 
 namespace App\View\Components;
 
-use Illuminate\View\Component;
+use App\Abstracts\View\Component;
+use App\Traits\DateTime;
+use App\Traits\Translations;
 use Illuminate\Support\Str;
-use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
 class SearchString extends Component
 {
+    use DateTime, Translations;
+
     public $filters;
+
+    public $filtered;
 
     /** string */
     public $model;
+
+    public $skip_columns = [
+        'created_at',
+        'updated_at',
+    ];
 
     /**
      * Create a new component instance.
      *
      * @return void
      */
-    public function __construct(string $model = '', $filters = false)
+    public function __construct(string $model = '', $filters = false, $filtered = false)
     {
         $this->model = $model;
         $this->filters = $filters;
+        $this->filtered = $filtered;
     }
 
     /**
@@ -41,7 +52,12 @@ class SearchString extends Component
 
                 foreach ($columns as $column => $options) {
                     // This column skip for filter
-                    if (!empty($options['searchable'])) {
+                    if (! empty($options['searchable'])) {
+                        continue;
+                    }
+
+                    // This column skip for filter
+                    if (in_array($column, $this->skip_columns)) {
                         continue;
                     }
 
@@ -59,6 +75,10 @@ class SearchString extends Component
                         'type' => $this->getFilterType($options),
                         'url' => $this->getFilterUrl($column, $options),
                         'values' => $this->getFilterValues($column, $options),
+                        'value_option_fields' => $options['fields'] ?? [],
+                        //'operators' => $options['operators'] ?? $this->getOperators($options['type'] ?? 'string'),
+                        'operator' => $options['operator'] ?? '=',
+                        'multiple' => $options['multiple'] ?? false,
                     ];
                 }
             }
@@ -71,7 +91,7 @@ class SearchString extends Component
     {
         $filter = true;
 
-        if (empty($this->getFilterUrl($column, $options)) && (!isset($options['date']) && !isset($options['boolean']))) {
+        if (empty($this->getFilterUrl($column, $options)) && (!isset($options['date']) && !isset($options['boolean']) && !isset($options['values']))) {
             $filter = false;
         }
 
@@ -80,7 +100,15 @@ class SearchString extends Component
 
     protected function getFilterKey($column, $options)
     {
-        if (isset($options['relationship'])) {
+        if (isset($options['key'])) {
+            $column = $options['key'];
+        }
+
+        if (isset($options['relationship']) && isset($options['foreign_key']) && ! empty($options['foreign_key'])) {
+            $column .= '.' . $options['foreign_key'];
+        }
+
+        if (isset($options['relationship']) && ! isset($options['foreign_key'])) {
             $column .= '.id';
         }
 
@@ -89,10 +117,16 @@ class SearchString extends Component
 
     protected function getFilterName($column, $options)
     {
+        $column = last(explode('.', $column));
+
         if (strpos($column, '_id') !== false) {
             $column = str_replace('_id', '', $column);
         } else if (strpos($column, '_code') !== false) {
             $column = str_replace('_code', '', $column);
+        }
+
+        if (! empty($options['translation']) && ! isset($options['boolean'])) {
+            return $this->findTranslation($options['translation']);
         }
 
         if (!empty($options['key'])) {
@@ -104,7 +138,7 @@ class SearchString extends Component
         if (strpos($this->model, 'Modules') !== false) {
             $module_class = explode('\\', $this->model);
 
-            $prefix = Str::slug($module_class[1], '-') . '::';
+            $prefix = Str::kebab($module_class[1]) . '::';
 
             $translation_keys[] = $prefix . 'general.';
             $translation_keys[] = $prefix . 'search_string.columns.';
@@ -159,7 +193,7 @@ class SearchString extends Component
             if (strpos($this->model, 'Modules') !== false) {
                 $module_class = explode('\\', $this->model);
 
-                $url .= Str::slug($module_class[1], '-') . '::';
+                $url .= Str::kebab($module_class[1]) . '::';
             }
 
             if (strpos($column, '_id') !== false) {
@@ -186,13 +220,17 @@ class SearchString extends Component
             $values = [
                 [
                     'key' => 0,
-                    'value' => empty($options['translation']) ? trans('general.no') : trans($options['translation'][0]),
+                    'value' => empty($options['translation']) ? trans('general.no') : $this->findTranslation($options['translation'][0], 1),
                 ],
                 [
                     'key' => 1,
-                    'value' => empty($options['translation']) ? trans('general.yes') : trans($options['translation'][1]),
+                    'value' => empty($options['translation']) ? trans('general.yes') : $this->findTranslation($options['translation'][1], 1),
                 ],
             ];
+        } else if (isset($options['values'])) {
+            foreach ($options['values'] as $key => $value) {
+                $values[$key] = $this->findTranslation($value, 1);
+            }
         } else if ($search = request()->get('search', false)) {
             $fields = explode(' ', $search);
 
@@ -210,5 +248,42 @@ class SearchString extends Component
         }
 
         return $values;
+    }
+
+    protected function getOperators($type)
+    {
+        $operators = [
+            'equal' => [
+                'enabled'   => true,
+                'symbol'    => [
+                    'sign'  => '=',
+                    'icon'  => 'drag_handle',
+                ],
+                'text'      => trans('general.is'),
+            ],
+            'not_equal' => [
+                'enabled'   => true,
+                'symbol'    => [
+                    'sign'  => '!=',
+                    'img'   => asset('public/img/tailwind_icons/not-equal.svg'),
+                ],
+                'text'      => trans('general.isnot'),
+            ],
+            'range' => [
+                'enabled'   => false,
+                'symbol'    => [
+                    'sign'  => '><',
+                    'class' => 'transform rotate-90',
+                    'icon'  => 'height',
+                ],
+                'text'      => trans('general.range'),
+            ],
+        ];
+
+        if ($type == 'date') {
+            $operators['range']['enabled'] = true;
+        }
+
+        return $operators;
     }
 }

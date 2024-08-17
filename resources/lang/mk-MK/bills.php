@@ -2,55 +2,60 @@
 
 return [
 
-    'bill_number'       => 'Број на сметка',
-    'bill_date'         => 'Датум на сметка',
-    'total_price'       => 'Вкупна цена',
-    'due_date'          => 'Доспева на',
-    'order_number'      => 'Број на нарачка',
-    'bill_from'         => 'Сметка од',
+    'bill_number'           => 'Број на сметка',
+    'bill_date'             => 'Датум на сметка',
+    'bill_amount'           => 'Износ на Сметката',
+    'total_price'           => 'Вкупна цена',
+    'due_date'              => 'Датум на доспевање',
+    'order_number'          => 'Број на нарачка',
+    'bill_from'             => 'Сметка од',
 
-    'quantity'          => 'Количина',
-    'price'             => 'Цена',
-    'sub_total'         => 'Меѓузбир',
-    'discount'          => 'Попуст',
-    'tax_total'         => 'Вкупно данок',
-    'total'             => 'Вкупно',
+    'quantity'              => 'Количина',
+    'price'                 => 'Цена',
+    'sub_total'             => 'Меѓузбир',
+    'discount'              => 'Попуст',
+    'item_discount'         => 'Попуст на линија',
+    'tax_total'             => 'Вкупно данок',
+    'total'                 => 'Вкупно',
 
-    'item_name'         => 'Име / Имиња',
+    'item_name'             => 'Име на артиклот|Име на артиклите',
+    'recurring_bills'       => 'Повторувачка сметка|Повторувачки сметки',
 
-    'show_discount'     => ':discount% Попуст',
-    'add_discount'      => 'Додади попуст',
-    'discount_desc'     => 'од меѓузбир',
+    'show_discount'         => ':discount% Попуст',
+    'add_discount'          => 'Додади попуст',
+    'discount_desc'         => 'од меѓузбир',
 
-    'payment_due'       => 'Доспева за плаќање',
-    'amount_due'        => 'Износ за плаќање',
-    'paid'              => 'Платено',
-    'histories'         => 'Историја',
-    'payments'          => 'Плаќања',
-    'add_payment'       => 'Додади плаќање',
-    'mark_received'     => 'Означи како примена',
-    'download_pdf'      => 'Превземи PDF',
-    'send_mail'         => 'Прати е-маил',
+    'payment_made'          => 'Направено Плаќање',
+    'payment_due'           => 'Доспева за плаќање',
+    'amount_due'            => 'Доспеан износ',
+    'paid'                  => 'Платено',
+    'histories'             => 'Историја',
+    'payments'              => 'Плаќања',
+    'add_payment'           => 'Додади плаќање',
+    'mark_paid'             => 'Означи како платено',
+    'mark_received'         => 'Означи како примено',
+    'mark_cancelled'        => 'Означи како откажано',
+    'download_pdf'          => 'Преземи PDF',
+    'send_mail'             => 'Прати е-маил',
+    'create_bill'           => 'Нова сметка',
+    'receive_bill'          => 'Прими сметка',
+    'make_payment'          => 'Направи плаќање',
 
-    'statuses' => [
-        'draft'         => 'Неиспратено',
-        'received'      => 'Примено',
-        'partial'       => 'Некомплетно',
-        'paid'          => 'Платено',
+    'form_description' => [
+        'billing'           => 'Деталите за плаќање се појавуваат во вашата сметка. Датумот на сметка се користи во контролната табла и извештаите. Изберете го датумот на кој очекувате да ви биде платено како Датум на Доспевање.',
     ],
 
     'messages' => [
-        'received'      => 'Сметката е означена како примена успешно!',
-        'draft'          => 'This is a <b>DRAFT</b> bill and will be reflected to charts after it gets received.',
+        'draft'             => 'Ова е <b>НАЦРТ</b> сметка и ќе се рефлектира на графиконите одкако ќе биде примена.',
 
         'status' => [
-            'created'   => 'Created on :date',
-            'receive'      => [
-                'draft'     => 'Not sent',
-                'received'  => 'Received on :date',
+            'created'       => 'Создадена на :date',
+            'receive' => [
+                'draft'     => 'Не е примено',
+                'received'  => 'Примено на :date',
             ],
-            'paid'      => [
-                'await'     => 'Awaiting payment',
+            'paid' => [
+                'await'     => 'Неплатена',
             ],
         ],
     ],

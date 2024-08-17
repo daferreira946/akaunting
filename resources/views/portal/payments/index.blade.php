@@ -1,58 +1,95 @@
-@extends('layouts.portal')
+<x-layouts.portal>
+    <x-slot name="title">
+        {{ trans_choice('general.payments', 2) }}
+    </x-slot>
 
-@section('title', trans_choice('general.payments', 2))
+    <x-slot name="content">
+        @if ($payments->count() || request()->get('search', false))
+            <x-index.container>
+                <x-index.search search-string="App\Models\Portal\Banking\Transaction" />
 
-@section('content')
-    <div class="card">
-        <div class="card-header border-bottom-0">
-            {!! Form::open([
-                'route' => 'portal.payments.index',
-                'role' => 'form',
-                'method' => 'GET',
-                'class' => 'mb-0'
-            ]) !!}
+                <x-table>
+                    <x-table.thead>
+                        <x-table.tr>
+                            <x-table.th override="class" class="p-0"></x-table.th>
 
-                <div class="row">
-                    <div class="col-12 align-items-center">
-                        <x-search-string model="App\Models\Portal\Banking\Transaction" />
+                            <x-table.th class="w-4/12 sm:w-3/12">
+                                <x-sortablelink column="paid_at" title="{{ trans('general.date') }}" />
+                            </x-table.th>
+
+                            <x-table.th class="w-4/12 sm:w-3/12">
+                                <x-sortablelink column="payment_method" title="{{ trans_choice('general.payment_methods', 1) }}" />
+                            </x-table.th>
+
+                            <x-table.th class="w-4/12 sm:w-3/12" hidden-mobile>
+                                <x-sortablelink column="description" title="{{ trans('general.description') }}" />
+                            </x-table.th>
+
+                            <x-table.th class="w-3/12" kind="amount">
+                                <x-sortablelink column="amount" title="{{ trans('general.amount') }}" />
+                            </x-table.th>
+                        </x-table.tr>
+                    </x-table.thead>
+
+                    <x-table.tbody>
+                        @foreach($payments as $item)
+                            <x-table.tr href="{{ route('portal.payments.show', $item->id) }}">
+                                <x-table.td kind="action"></x-table.td>
+
+                                <x-table.td class="w-4/12 sm:w-3/12">
+                                    <span class="font-bold"><x-date date="{{ $item->paid_at }}" /></span>
+                                </x-table.td>
+
+                                <x-table.td class="w-4/12 sm:w-3/12">
+                                    <x-payment-method :method="$item->payment_method" type="customer" />
+                                </x-table.td>
+
+                                <x-table.td class="w-3/12" hidden-mobile>
+                                    {{ $item->description }}
+                                </x-table.td>
+
+                                <x-table.td class="w-3/12" kind="amount">
+                                    <x-money :amount="$item->amount" :currency="$item->currency_code" />
+                                </x-table.td>
+                            </x-table.tr>
+                        @endforeach
+                    </x-table.tbody>
+                </x-table>
+
+                <x-pagination :items="$payments" />
+            </x-index.container>
+        @else
+            <div class="flex">
+                <div class="w-full text-center">
+                    <div class="my-10">
+                        {{ trans('portal.create_your_invoice') }}
+                    </div>
+
+                    <div class="my-10">
+                        <x-link
+                            href="https://akaunting.com/accounting-software?utm_source=software&utm_medium=payment_index&utm_campaign=plg"
+                            class="bg-purple text-white px-3 py-1.5 mb-3 sm:mb-0 rounded-xl text-sm font-medium leading-6 hover:bg-purple-700"
+                            override="class"
+                        >
+                            {{ trans('portal.get_started') }}
+                        </x-link>
+                    </div>
+
+                    <div class="my-10">
+                        <img src="https://assets.akaunting.com/software/portal/payment.gif" class="inline" alt="Get Started" />
                     </div>
                 </div>
-
-            {!! Form::close() !!}
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-flush table-hover">
-                <thead class="thead-light">
-                    <tr class="row table-head-line">
-                        <th class="col-xs-3 col-sm-3">@sortablelink('paid_at', trans('general.date'))</th>
-                        <th class="col-xs-3 col-sm-3">@sortablelink('amount', trans('general.amount'))</th>
-                        <th class="col-xs-6 col-sm-3">@sortablelink('payment_method', trans_choice('general.payment_methods', 1))</th>
-                        <th class="col-sm-3 d-none d-sm-block">@sortablelink('description', trans('general.description'))</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @foreach($payments as $item)
-                        <tr class="row align-items-center border-top-1 tr-py">
-                            <td class="col-xs-3 col-sm-3"><a href="{{ route('portal.payments.show', $item->id) }}">@date($item->paid_at)</a></td>
-                            <td class="col-xs-3 col-sm-3">@money($item->amount, $item->currency_code, true)</td>
-                            <td class="col-xs-6 col-sm-3">{{ $payment_methods[$item->payment_method] }}</td>
-                            <td class="col-sm-3 d-none d-sm-block">{{ $item->description }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        <div class="card-footer table-action">
-            <div class="row">
-                @include('partials.admin.pagination', ['items' => $payments])
             </div>
-        </div>
-    </div>
-@endsection
 
-@push('scripts_start')
-    <script src="{{ asset('public/js/portal/payments.js?v=' . version('short')) }}"></script>
-@endpush
+            @push('css')
+                <style>
+                    .hide-empty-page {
+                        display: none;
+                    }
+                </style>
+            @endpush
+        @endif
+    </x-slot>
+
+    <x-script folder="portal" file="apps" />
+</x-layouts.portal>

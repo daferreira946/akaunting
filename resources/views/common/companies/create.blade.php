@@ -1,51 +1,41 @@
-@extends('layouts.admin')
+<x-layouts.admin>
+    <x-slot name="title">
+        {{ trans('general.title.new', ['type' => trans_choice('general.companies', 1)]) }}
+    </x-slot>
 
-@section('title', trans('general.title.new', ['type' => trans_choice('general.companies', 1)]))
+    <x-slot name="content">
+        <x-form.container>
+            <x-form id="company" route="companies.store">
+                <x-form.section>
+                    <x-slot name="head">
+                        <x-form.section.head title="{{ trans('general.general') }}" description="{{ trans('companies.form_description.general') }}" />
+                    </x-slot>
 
-@section('content')
-    <div class="card">
-        {!! Form::open([
-            'id' => 'company',
-            'route' => 'companies.store',
-            '@submit.prevent' => 'onSubmit',
-            '@keydown' => 'form.errors.clear($event.target.name)',
-            'files' => true,
-            'role' => 'form',
-            'class' => 'form-loading-button',
-            'novalidate' => true
-        ]) !!}
+                    <x-slot name="body">
+                        <x-form.group.text name="name" label="{{ trans('general.name') }}" />
 
-            <div class="card-body">
-                <div class="row">
-                    {{ Form::textGroup('name', trans('general.name'), 'font') }}
+                        <x-form.group.email name="email" label="{{ trans('general.email') }}" />
 
-                    {{ Form::emailGroup('email', trans('general.email'), 'envelope') }}
+                        <x-form.group.currency name="currency" :options="$currencies" without-add-new />
 
-                    {{ Form::selectGroup('currency', trans_choice('general.currencies', 1), 'exchange-alt', $currencies) }}
+                        <x-form.group.country />
+                    </x-slot>
+                </x-form.section>
 
-                    {{ Form::selectGroup('locale', trans_choice('general.languages', 1), 'flag', language()->allowed(), setting('default.locale', config('app.locale', 'en-GB')), []) }}
+                <x-form.section>
+                    <x-slot name="foot">
+                        <x-form.buttons cancel-route="companies.index" />
+                    </x-slot>
+                </x-form.section>
+            </x-form>
+        </x-form.container>
+    </x-slot>
 
-                    {{ Form::textGroup('tax_number', trans('general.tax_number'), 'percent', [], setting('company.tax_number')) }}
+    @push('scripts_end')
+        <script type="text/javascript">
+            var country_validation_required_message = "{{ trans('validation.required', ['attribute' => trans_choice('general.countries', 1)]) }}";
+        </script>
+    @endpush
 
-                    {{ Form::textGroup('phone', trans('settings.company.phone'), 'phone', [], setting('company.phone')) }}
-
-                    {{ Form::textareaGroup('address', trans('general.address')) }}
-
-                    {{ Form::fileGroup('logo', trans('companies.logo'), '', ['dropzone-class' => 'form-file']) }}
-
-                    {{ Form::radioGroup('enabled', trans('general.enabled'), true) }}
-                </div>
-            </div>
-
-            <div class="card-footer">
-                <div class="row save-buttons">
-                    {{ Form::saveButtons('companies.index') }}
-                </div>
-            </div>
-        {!! Form::close() !!}
-    </div>
-@endsection
-
-@push('scripts_start')
-    <script src="{{ asset('public/js/common/companies.js?v=' . version('short')) }}"></script>
-@endpush
+    <x-script folder="common" file="companies" />
+</x-layouts.admin>

@@ -2,11 +2,11 @@
 
 namespace App\Imports\Common;
 
+use App\Abstracts\ImportMultipleSheets;
 use App\Imports\Common\Sheets\Items as Base;
 use App\Imports\Common\Sheets\ItemTaxes;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class Items implements WithMultipleSheets
+class Items extends ImportMultipleSheets
 {
     public function sheets(): array
     {

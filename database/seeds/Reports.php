@@ -3,11 +3,14 @@
 namespace Database\Seeds;
 
 use App\Abstracts\Model;
-use App\Models\Common\Report;
+use App\Jobs\Common\CreateReport;
+use App\Traits\Jobs;
 use Illuminate\Database\Seeder;
 
 class Reports extends Seeder
 {
+    use Jobs;
+
     /**
      * Run the database seeds.
      *
@@ -30,23 +33,23 @@ class Reports extends Seeder
             [
                 'company_id' => $company_id,
                 'class' => 'App\Reports\IncomeSummary',
-                'name' => trans('reports.summary.income'),
+                'name' => trans('reports.income_summary'),
                 'description' => trans('demo.reports.income'),
-                'settings' => ['group' => 'category', 'period' => 'monthly', 'basis' => 'accrual', 'chart' => 'line'],
+                'settings' => ['group' => 'category', 'period' => 'monthly', 'basis' => 'accrual'],
             ],
             [
                 'company_id' => $company_id,
                 'class' => 'App\Reports\ExpenseSummary',
-                'name' => trans('reports.summary.expense'),
+                'name' => trans('reports.expense_summary'),
                 'description' => trans('demo.reports.expense'),
-                'settings' => ['group' => 'category', 'period' => 'monthly', 'basis' => 'accrual', 'chart' => 'line'],
+                'settings' => ['group' => 'category', 'period' => 'monthly', 'basis' => 'accrual'],
             ],
             [
                 'company_id' => $company_id,
                 'class' => 'App\Reports\IncomeExpenseSummary',
-                'name' => trans('reports.summary.income_expense'),
+                'name' => trans('reports.income_expense_summary'),
                 'description' => trans('demo.reports.income_expense'),
-                'settings' => ['group' => 'category', 'period' => 'monthly', 'basis' => 'accrual', 'chart' => 'line'],
+                'settings' => ['group' => 'category', 'period' => 'monthly', 'basis' => 'accrual'],
             ],
             [
                 'company_id' => $company_id,
@@ -58,14 +61,16 @@ class Reports extends Seeder
             [
                 'company_id' => $company_id,
                 'class' => 'App\Reports\TaxSummary',
-                'name' => trans('reports.summary.tax'),
+                'name' => trans('reports.tax_summary'),
                 'description' => trans('demo.reports.tax'),
                 'settings' => ['period' => 'quarterly', 'basis' => 'accrual'],
             ],
         ];
 
         foreach ($rows as $row) {
-            Report::create($row);
+            $row['created_from'] = 'core::seed';
+
+            $this->dispatch(new CreateReport($row));
         }
     }
 }

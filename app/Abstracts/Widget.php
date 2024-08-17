@@ -2,23 +2,30 @@
 
 namespace App\Abstracts;
 
+use App\Models\Common\Report;
 use App\Traits\Charts;
+use App\Traits\DateTime;
 use App\Utilities\Date;
+use App\Utilities\Reports;
 
 abstract class Widget
 {
-    use Charts;
+    use Charts, DateTime;
 
     public $model;
 
     public $default_name = '';
 
     public $default_settings = [
-        'width' => 'col-md-4',
+        'width' => '50',
     ];
 
+    public $description = '';
+
+    public $report_class = '';
+
     public $views = [
-        'header' => 'partials.widgets.standard_header',
+        'header' => 'components.widgets.header',
     ];
 
     public function __construct($model = null)
@@ -36,6 +43,47 @@ abstract class Widget
         return $this->default_settings;
     }
 
+    public function getDescription()
+    {
+        return trans($this->description);
+    }
+
+    public function getReportUrl(): string
+    {
+        $empty_url = '';
+
+        if (empty($this->report_class)) {
+            return $empty_url;
+        }
+
+        if (Reports::isModule($this->report_class) && Reports::isModuleDisabled($this->report_class)) {
+            $alias = Reports::getModuleAlias($this->report_class);
+
+            return route('apps.app.show', [
+                'alias'         => $alias,
+                'utm_source'    => 'widget',
+                'utm_medium'    => 'app',
+                'utm_campaign'  => str_replace('-', '_', $alias),
+            ]);
+        }
+
+        if (! class_exists($this->report_class)) {
+            return $empty_url;
+        }
+
+        if (Reports::cannotRead($this->report_class)) {
+            return $empty_url;
+        }
+
+        $model = Report::where('class', $this->report_class)->first();
+
+        if (! $model instanceof Report) {
+            return route('reports.create');
+        }
+
+        return route('reports.show', $model->id);
+    }
+
     public function getViews()
     {
         return $this->views;
@@ -43,23 +91,16 @@ abstract class Widget
 
     public function view($name, $data = [])
     {
-        if (request()->isApi()) {
+        if (request_is_api()) {
             return $data;
         }
 
         return view($name, array_merge(['class' => $this], (array) $data));
     }
 
-    public function applyFilters($model, $args = ['date_field' => 'paid_at'])
+    public function applyFilters($query, $args = ['date_field' => 'paid_at'])
     {
-        if (empty(request()->get('start_date', null))) {
-            return $model;
-        }
-
-        $start_date = request()->get('start_date') . ' 00:00:00';
-        $end_date = request()->get('end_date') . ' 23:59:59';
-
-        return $model->whereBetween($args['date_field'], [$start_date, $end_date]);
+        return $this->scopeDateFilter($query, $args['date_field']);
     }
 
     public function calculateDocumentTotals($model)

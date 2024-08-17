@@ -8,9 +8,16 @@ return [
         'deleted'           => ':type borrado!',
         'duplicated'        => ': type duplicado!',
         'imported'          => ':type importado!',
+        'import_queued'     => 'La importación de :type ha sido programada! Recibirás un correo electrónico cuando haya terminado.',
         'exported'          => ':type exportado!',
+        'export_queued'     => 'La exportación de :type ha sido programada! Recibirás un correo electrónico cuando haya terminado.',
         'enabled'           => ':type habilitado!',
         'disabled'          => ':type deshabilitado!',
+        'connected'         => ':type conectado!',
+        'invited'           => ':type invitado!',
+        'ended'             => ':type terminado!',
+
+        'clear_all'         => '¡Genial! Has borrado todo tu :type.',
     ],
 
     'error' => [
@@ -23,6 +30,8 @@ return [
         'invalid_apikey'    => 'Error: ¡La clave de API introducida no es válida!',
         'import_column'     => 'Error: :message Nombre de la hoja: :sheet. Número de línea: :line.',
         'import_sheet'      => 'Error: El nombre de la hoja no es válido. Por favor, verifique el archivo de ejemplo.',
+        'same_amount'       => 'Error: La cantidad total de división debe ser exactamente la misma que el :transaction total: :amount',
+        'over_match'        => 'Error: :type no conectado! La cantidad introducida no puede exceder el total del pago: :amount',
     ],
 
     'warning' => [

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Events\Menu\PortalCreated;
+use App\Events\Menu\PortalCreating;
 use Closure;
 
 class PortalMenu
@@ -22,7 +23,9 @@ class PortalMenu
         }
 
         menu()->create('portal', function ($menu) {
-            $menu->style('argon');
+            $menu->style('tailwind');
+
+            event(new PortalCreating($menu));
 
             event(new PortalCreated($menu));
         });

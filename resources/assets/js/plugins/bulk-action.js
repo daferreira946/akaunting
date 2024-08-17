@@ -37,8 +37,10 @@ export default class BulkAction {
             this.select_all = true;
         }
 
-        if (!this.count) {
+        if (! this.count) {
             this.show = false;
+
+            this.hideSearchHTML();
         }
     }
 
@@ -46,8 +48,9 @@ export default class BulkAction {
     selectAll() {
         this.show = false;
         this.selected = [];
+        this.hideSearchHTML();
 
-        if (!this.select_all) {
+        if (! this.select_all) {
             this.show = true;
 
             for (let input of document.querySelectorAll('[data-bulk-action]')) {
@@ -58,23 +61,23 @@ export default class BulkAction {
         this.count = this.selected.length;
     }
 
-    change(event) {
-        this.message = event.target.options[event.target.options.selectedIndex].dataset.message;
+    change(type) {
+        let action = document.getElementById('index-bulk-actions-' + type);
+
+        this.value = type;
+
+        this.message = action.getAttribute('data-message');
 
         if (typeof(this.message) == "undefined") {
             this.message = '';
         }
 
-        this.path = document.getElementsByName("bulk_action_path")[0].getAttribute('value');
-
-        if (event.target.options[event.target.options.selectedIndex].dataset.path) {
-            this.path = event.target.options[event.target.options.selectedIndex].dataset.path;
-        }
+        this.path = action.getAttribute('data-path');
 
         this.type = '*';
 
-        if (event.target.options[event.target.options.selectedIndex].dataset.type) {
-            this.type = event.target.options[event.target.options.selectedIndex].dataset.type;
+        if (action.getAttribute('data-type')) {
+            this.type = action.getAttribute('data-type');
         }
 
         return this.message;
@@ -88,7 +91,7 @@ export default class BulkAction {
 
         this.loading = true;
 
-        // bwfore version 2.0.23
+        // before version 2.0.23
         if (this.value == 'export') {
             this.type = 'download';
         }
@@ -106,39 +109,75 @@ export default class BulkAction {
                 }));
 
                 download_promise.then((response) => {
-                    const blob = new Blob([response.data], {type: response.data.type});
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-    
-                    link.href = url;
-    
-                    const contentDisposition = response.headers['content-disposition'];
-    
-                    let fileName = 'unknown';
-    
-                    if (contentDisposition) {
-                        const fileNameMatch = contentDisposition.match(/filename=(.+)/);
-    
-                        if (fileNameMatch.length === 2) {
-                            fileName = fileNameMatch[1];
+                    if (response.data.type != 'application/json') {
+                        const blob = new Blob([response.data], {type: response.data.type});
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+
+                        link.href = url;
+
+                        const contentDisposition = response.headers['content-disposition'];
+
+                        let fileName = 'unknown';
+
+                        if (contentDisposition) {
+                            const fileNameMatch = contentDisposition.match(/filename=(.+)/);
+
+                            if (fileNameMatch.length === 2) {
+                                fileName = fileNameMatch[1];
+                            }
                         }
+
+                        link.setAttribute('download', fileName);
+
+                        document.body.appendChild(link);
+
+                        link.click();
+                        link.remove();
+
+                        window.URL.revokeObjectURL(url);
+
+                        this.loading = false;
+                        this.modal = false;
+                        this.value = '*';
+                        this.clear();
+
+                        return;
                     }
-    
-                    link.setAttribute('download', fileName);
-    
-                    document.body.appendChild(link);
-    
-                    link.click();
-                    link.remove();
-    
-                    window.URL.revokeObjectURL(url);
-    
-                     this.loading = false;
-                     this.modal = false;
-                     this.value = '*';
-                     this.clear();
+
+                    window.location.reload(false);
                 });
+
               break;
+            case 'modal':
+                this.loading = false;
+
+                let modal_promise = Promise.resolve(window.axios.post(this.path, {
+                    'handle': this.value,
+                    'selected': this.selected
+                }));
+
+                modal_promise.then(response => {
+                    let vue = document.querySelector('#app').__vue__;
+
+                    if (vue === undefined) {
+                        vue = document.querySelector('#main-body').__vue__;
+                    }
+
+                    vue.onDynamicComponentWithParams({
+                        modal: true,
+                        url: this.path,
+                        title: response.data.data.title,
+                        html: response.data.html,
+                        buttons: response.data.data.buttons
+                    });
+                })
+                .catch(error => {
+                    //this.loading = false;
+                    //this.modal = false;
+                });
+
+                break;
             default:
                 let type_promise = Promise.resolve(window.axios.post(this.path, {
                     'handle': this.value,
@@ -146,8 +185,10 @@ export default class BulkAction {
                 }));
 
                 type_promise.then(response => {
-                    if (response.data.redirect) {
+                    if (response.data.redirect === true) {
                         window.location.reload(false);
+                    } else if (typeof response.data.redirect === 'string') {
+                        window.location.href = response.data.redirect;
                     }
                 })
                 .catch(error => {
@@ -167,18 +208,30 @@ export default class BulkAction {
         this.show = false;
         this.select_all = false;
         this.selected = [];
+
+        this.hideSearchHTML();
     }
+
+    hideSearchHTML() {
+        setInterval(() => {
+            const search_box_html = document.querySelector('.js-search-box-hidden');
+
+            if (search_box_html) {
+                search_box_html.classList.add('d-none');
+            }
+        }, 5);
+    };
 
     // Change enabled status
     status(item_id, event, notify) {
-        var item = event.target;
-        var status = (event.target.checked) ? 'enable' : 'disable';
+        let item = event.target;
+        let status = (event.target.checked) ? 'enable' : 'disable';
 
         window.axios.get(this.path + '/' + item_id + '/' + status)
         .then(response => {
-            var type = (response.data.success) ? 'success' : 'warning';
+            let type = (response.data.success) ? 'success' : 'warning';
 
-            if (!response.data.success) {
+            if (! response.data.success) {
                 if (item.checked) {
                     item.checked = false;
                 } else {

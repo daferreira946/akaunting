@@ -47,8 +47,7 @@ class DownloadModule extends Command
         $this->alias = $this->argument('alias');
         $this->company = $this->argument('company');
 
-        session(['company_id' => $this->company]);
-        setting()->setExtraColumns(['company_id' => $this->company]);
+        company($this->company)->makeCurrent();
 
         if (!$path = $this->download()) {
             return self::CMD_ERROR;
@@ -126,6 +125,6 @@ class DownloadModule extends Command
             $version = Versions::getLatestVersion($url, $current);
         }
 
-        return $version;
+        return $version?->latest;
     }
 }

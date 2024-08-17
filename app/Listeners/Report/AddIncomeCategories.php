@@ -25,8 +25,10 @@ class AddIncomeCategories extends Listener
             return;
         }
 
-        $event->class->filters['categories'] = $this->getIncomeCategories();
-        $event->class->filters['routes']['categories'] = ['categories.index', 'search=type:income'];
+        // send true for add limit on search and filter..
+        $event->class->filters['categories'] = $this->getIncomeCategories(true);
+        $event->class->filters['routes']['categories'] = ['categories.index', 'search=type:income enabled:1'];
+        $event->class->filters['multiple']['categories'] = true;
     }
 
     /**
@@ -56,16 +58,24 @@ class AddIncomeCategories extends Listener
             return;
         }
 
+        $all_categories = $this->getIncomeCategories();
+
         if ($category_ids = $this->getSearchStringValue('category_id')) {
             $categories = explode(',', $category_ids);
 
-            $rows = collect($event->class->filters['categories'])->filter(function ($value, $key) use ($categories) {
+            $rows = collect($all_categories)->filter(function ($value, $key) use ($categories) {
                 return in_array($key, $categories);
             });
         } else {
-            $rows = $event->class->filters['categories'];
+            $rows = $all_categories;
         }
 
         $this->setRowNamesAndValues($event, $rows);
+
+        $event->class->row_tree_nodes = [];
+
+        $nodes = $this->getCategoriesNodes($rows);
+
+        $this->setTreeNodes($event, $nodes);
     }
 }

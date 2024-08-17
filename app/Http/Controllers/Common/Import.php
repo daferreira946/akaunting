@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Common;
 
 use App\Abstracts\Http\Controller;
-use Illuminate\Http\Request;
+use Akaunting\Module\Module;
 
 class Import extends Controller
 {
@@ -12,18 +12,44 @@ class Import extends Controller
      *
      * @param  $group
      * @param  $type
+     * @param  $route
+     *
      * @return Response
      */
     public function create($group, $type, $route = null)
     {
-        $path = $group . '/' . $type;
+        $path = company_id() . '/' . $group . '/' . $type;
 
-        if (module($group) instanceof \Akaunting\Module\Module) {
-            $namespace = $group . '::';
+        $module = module($group);
+
+        if ($module instanceof Module) {
+            $title_type = trans_choice($group . '::general.' . str_replace('-', '_', $type), 2);
+            $sample_file = url('modules/' . $module->getStudlyName() . '/Resources/assets/' . $type . '.xlsx');
         } else {
-            $namespace = '';
+            $title_type = trans_choice('general.' . str_replace('-', '_', $type), 2);
+            $sample_file = url('public/files/import/' . $type . '.xlsx');
         }
 
-        return view('common.import.create', compact('group', 'type', 'path', 'route', 'namespace'));
+        $form_params = [
+            'id' => 'import',
+            '@submit.prevent' => 'onSubmit',
+            '@keydown' => 'form.errors.clear($event.target.name)',
+            'files' => true,
+            'role' => 'form',
+            'class' => 'form-loading-button',
+            'novalidate' => true,
+            'route' => '',
+            'url' => '',
+        ];
+
+        if (! empty($route)) {
+            $form_params['route'] = $route;
+        } else {
+            $form_params['url'] = $path . '/import';
+        }
+
+        $document_link = 'https://akaunting.com/hc/docs/import-export/';
+
+        return view('common.import.create', compact('group', 'type', 'path', 'route', 'form_params', 'title_type', 'sample_file', 'document_link'));
     }
 }

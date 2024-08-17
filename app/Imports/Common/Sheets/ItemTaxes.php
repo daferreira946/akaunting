@@ -8,11 +8,19 @@ use App\Models\Common\ItemTax as Model;
 
 class ItemTaxes extends Import
 {
+    public $request_class = Request::class;
+
+    public $model = Model::class;
+
+    public $columns = [
+        'item_id',
+        'tax_id'
+    ];
+
     public function model(array $row)
     {
-        // @todo remove after laravel-excel 3.2 release
-        if ($row['item_name'] === $this->empty_field) {
-            return null;
+        if (self::hasRow($row)) {
+            return;
         }
 
         return new Model($row);
@@ -20,16 +28,16 @@ class ItemTaxes extends Import
 
     public function map($row): array
     {
+        if ($this->isEmpty($row, 'item_name')) {
+            return [];
+        }
+
         $row = parent::map($row);
 
-        $row['item_id'] = $this->getItemIdFromName($row);
+        $row['item_id'] = $this->getItemId($row);
+
         $row['tax_id'] = $this->getTaxId($row);
 
         return $row;
-    }
-
-    public function rules(): array
-    {
-        return (new Request())->rules();
     }
 }

@@ -13,6 +13,9 @@ return [
         'issued_at'         => 'Utfärdad Datum',
         'symbol_first'      => 'Symbolplacering',
         'reconciled'        => 'Avstämd',
+        'expense_account'   => 'Från konto',
+        'income_account'    => 'Till konto',
+        'recurring'         => 'Återkommande',
     ],
 
 ];

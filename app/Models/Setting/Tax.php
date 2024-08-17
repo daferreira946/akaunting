@@ -24,7 +24,7 @@ class Tax extends Model
      *
      * @var array
      */
-    protected $fillable = ['company_id', 'name', 'rate', 'type', 'enabled'];
+    protected $fillable = ['company_id', 'name', 'rate', 'type', 'enabled', 'created_from', 'created_by'];
 
     /**
      * The attributes that should be cast.
@@ -32,8 +32,9 @@ class Tax extends Model
      * @var array
      */
     protected $casts = [
-        'rate' => 'double',
-        'enabled' => 'boolean',
+        'rate'          => 'double',
+        'enabled'       => 'boolean',
+        'deleted_at'    => 'datetime',
     ];
 
     /**
@@ -41,11 +42,11 @@ class Tax extends Model
      *
      * @var array
      */
-    public $sortable = ['name', 'rate', 'enabled'];
+    public $sortable = ['name', 'type', 'rate'];
 
     public function items()
     {
-        return $this->hasMany('App\Models\Common\Item');
+        return $this->hasMany('App\Models\Common\ItemTax');
     }
 
     public function document_items()
@@ -55,12 +56,12 @@ class Tax extends Model
 
     public function bill_items()
     {
-        return $this->document_items()->where('type', Document::BILL_TYPE);
+        return $this->document_items()->where('document_item_taxes.type', Document::BILL_TYPE);
     }
 
     public function invoice_items()
     {
-        return $this->document_items()->where('type', Document::INVOICE_TYPE);
+        return $this->document_items()->where('document_item_taxes.type', Document::INVOICE_TYPE);
     }
 
     public function scopeName($query, $name)
@@ -84,37 +85,37 @@ class Tax extends Model
             return $query;
         }
 
-        return $query->whereIn($this->table . '.type', (array) $types);
+        return $query->whereIn($this->qualifyColumn('type'), (array) $types);
     }
 
     public function scopeFixed($query)
     {
-        return $query->where($this->table . '.type', '=', 'fixed');
+        return $query->where($this->qualifyColumn('type'), '=', 'fixed');
     }
 
     public function scopeNormal($query)
     {
-        return $query->where($this->table . '.type', '=', 'normal');
+        return $query->where($this->qualifyColumn('type'), '=', 'normal');
     }
 
     public function scopeInclusive($query)
     {
-        return $query->where($this->table . '.type', '=', 'inclusive');
+        return $query->where($this->qualifyColumn('type'), '=', 'inclusive');
     }
 
     public function scopeCompound($query)
     {
-        return $query->where($this->table . '.type', '=', 'compound');
+        return $query->where($this->qualifyColumn('type'), '=', 'compound');
     }
 
     public function scopeWithholding($query)
     {
-        return $query->where($this->table . '.type', '=', 'withholding');
+        return $query->where($this->qualifyColumn('type'), '=', 'withholding');
     }
 
     public function scopeNotWithholding($query)
     {
-        return $query->where($this->table . '.type', '<>', 'withholding');
+        return $query->where($this->qualifyColumn('type'), '<>', 'withholding');
     }
 
     /**
@@ -134,6 +135,39 @@ class Tax extends Model
         $title .= ')';
 
         return $title;
+    }
+
+    /**
+     * Get the line actions.
+     *
+     * @return array
+     */
+    public function getLineActionsAttribute()
+    {
+        $actions = [];
+
+        $actions[] = [
+            'title' => trans('general.edit'),
+            'icon' => 'edit',
+            'url' => route('taxes.edit', $this->id),
+            'permission' => 'update-settings-taxes',
+            'attributes' => [
+                'id' => 'index-line-actions-edit-tax-' . $this->id,
+            ],
+        ];
+
+        $actions[] = [
+            'type' => 'delete',
+            'icon' => 'delete',
+            'route' => 'taxes.destroy',
+            'permission' => 'delete-settings-taxes',
+            'attributes' => [
+                'id' => 'index-line-actions-delete-tax-' . $this->id,
+            ],
+            'model' => $this,
+        ];
+
+        return $actions;
     }
 
     /**

@@ -4,10 +4,10 @@ namespace Tests\Feature\Banking;
 
 use App\Exports\Banking\Transfers as Export;
 use App\Jobs\Banking\CreateTransfer;
-use App\Models\Banking\Account;
 use App\Models\Banking\Transfer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Maatwebsite\Excel\Facades\Excel;
 use Tests\Feature\FeatureTestCase;
 
 class TransfersTest extends FeatureTestCase
@@ -42,7 +42,7 @@ class TransfersTest extends FeatureTestCase
         $transfer = $this->dispatch(new CreateTransfer($this->getRequest()));
 
         $this->loginAs()
-            ->get(route('transfers.edit', $transfer->id))
+            ->get(route('transfers.show', $transfer->id))
             ->assertStatus(200)
             ->assertSee($transfer->description);
     }
@@ -76,16 +76,20 @@ class TransfersTest extends FeatureTestCase
     public function testItShouldExportTransfers()
     {
         $count = 5;
-        Transfer::factory()->count($count)->create();
+        foreach (Transfer::factory()->count($count)->raw() as $request) {
+            $this->dispatch(new CreateTransfer($request));
+        }
 
-        \Excel::fake();
+        Excel::fake();
 
         $this->loginAs()
-             ->get(route('transfers.export'))
-             ->assertStatus(200);
+            ->get(route('transfers.export'))
+            ->assertStatus(200);
 
-        \Excel::assertDownloaded(
-            \Str::filename(trans_choice('general.transfers', 2)) . '.xlsx',
+        Excel::matchByRegex();
+
+        Excel::assertDownloaded(
+            '/' . str()->filename(trans_choice('general.transfers', 2)) . '-\d{10}\.xlsx/',
             function (Export $export) use ($count) {
                 // Assert that the correct export is downloaded.
                 return $export->collection()->count() === $count;
@@ -95,62 +99,55 @@ class TransfersTest extends FeatureTestCase
 
     public function testItShouldExportSelectedTransfers()
     {
-        $count = 5;
-        $transfers = Transfer::factory()->count($count)->create();
+        $create_count = 5;
+        $select_count = 3;
 
-        \Excel::fake();
+        foreach (Transfer::factory()->count($create_count)->raw() as $request) {
+            $responses[] = $this->dispatch(new CreateTransfer($request));
+        }
+
+        Excel::fake();
 
         $this->loginAs()
-             ->post(
-                 route('bulk-actions.action', ['group' => 'banking', 'type' => 'transfers']),
-                 ['handle' => 'export', 'selected' => [$transfers->random()->id]]
-             )
+            ->post(
+                route('bulk-actions.action', ['group' => 'banking', 'type' => 'transfers']),
+                ['handle' => 'export', 'selected' => collect($responses)->take($select_count)->pluck('id')->toArray()]
+            )
             ->assertStatus(200);
 
-        \Excel::assertDownloaded(
-            \Str::filename(trans_choice('general.transfers', 2)) . '.xlsx',
-            function (Export $export) {
-                return $export->collection()->count() === 1;
+        Excel::matchByRegex();
+
+        Excel::assertDownloaded(
+            '/' . str()->filename(trans_choice('general.transfers', 2)) . '-\d{10}\.xlsx/',
+            function (Export $export) use ($select_count) {
+                return $export->collection()->count() === $select_count;
             }
         );
     }
 
     public function testItShouldImportTransfers()
     {
-        \Excel::fake();
+        Excel::fake();
 
         $this->loginAs()
-             ->post(
-                 route('transfers.import'),
-                 [
-                     'import' => UploadedFile::fake()->createWithContent(
-                         'transfers.xlsx',
-                         File::get(public_path('files/import/transfers.xlsx'))
-                     ),
-                 ]
-             )
-             ->assertStatus(302);
+            ->post(
+                route('transfers.import'),
+                [
+                    'import' => UploadedFile::fake()->createWithContent(
+                        'transfers.xlsx',
+                        File::get(public_path('files/import/transfers.xlsx'))
+                    ),
+                ]
+            )
+            ->assertStatus(200);
 
-        \Excel::assertImported('transfers.xlsx');
+        Excel::assertImported('transfers.xlsx');
 
         $this->assertFlashLevel('success');
     }
 
     public function getRequest()
     {
-        $from_account = Account::factory()->enabled()->default_currency()->create();
-
-        $to_account = Account::factory()->enabled()->default_currency()->create();
-
-        return [
-            'company_id' => $this->company->id,
-            'from_account_id' => $from_account->id,
-            'to_account_id' => $to_account->id,
-            'amount' => $this->faker->randomFloat(2, 1, 1000),
-            'transferred_at' => $this->faker->date(),
-            'description'=> $this->faker->text(20),
-            'payment_method' => setting('default.payment_method'),
-            'reference' => $this->faker->text(20),
-        ];
+        return Transfer::factory()->raw();
     }
 }

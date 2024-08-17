@@ -3,70 +3,115 @@
 namespace App\Jobs\Auth;
 
 use App\Abstracts\Job;
-use App\Models\Auth\User;
-use Artisan;
+use App\Events\Auth\UserCreated;
+use App\Events\Auth\UserCreating;
+use App\Interfaces\Job\HasOwner;
+use App\Interfaces\Job\HasSource;
+use App\Interfaces\Job\ShouldCreate;
+use App\Traits\Plans;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 
-class CreateUser extends Job
+class CreateUser extends Job implements HasOwner, HasSource, ShouldCreate
 {
-    protected $user;
+    use Plans;
 
-    protected $request;
-
-    /**
-     * Create a new job instance.
-     *
-     * @param  $request
-     */
-    public function __construct($request)
-    {
-        $this->request = $this->getRequestInstance($request);
-    }
-
-    /**
-     * Execute the job.
-     *
-     * @return Permission
-     */
     public function handle()
     {
+        $this->authorize();
+
+        event(new UserCreating($this->request));
+
         \DB::transaction(function () {
-            $this->user = User::create($this->request->input());
+            if (empty($this->request->get('password', false))) {
+                $this->request->merge(['password' => Str::random(40)]);
+            }
+
+            $this->model = user_model_class()::create($this->request->input());
 
             // Upload picture
             if ($this->request->file('picture')) {
                 $media = $this->getMedia($this->request->file('picture'), 'users');
 
-                $this->user->attachMedia($media, 'picture');
+                $this->model->attachMedia($media, 'picture');
             }
 
             if ($this->request->has('dashboards')) {
-                $this->user->dashboards()->attach($this->request->get('dashboards'));
+                $this->model->dashboards()->attach($this->request->get('dashboards'));
             }
 
             if ($this->request->has('permissions')) {
-                $this->user->permissions()->attach($this->request->get('permissions'));
+                $this->model->permissions()->attach($this->request->get('permissions'));
             }
 
             if ($this->request->has('roles')) {
-                $this->user->roles()->attach($this->request->get('roles'));
+                $this->model->roles()->attach($this->request->get('roles'));
             }
 
             if ($this->request->has('companies')) {
-                $this->user->companies()->attach($this->request->get('companies'));
+                if (app()->runningInConsole() || request()->isInstall()) {
+                    $this->model->companies()->attach($this->request->get('companies'));
+                } else {
+                    $user = user();
+
+                    $companies = $user->withoutEvents(function () use ($user) {
+                        return $user->companies()->whereIn('id', $this->request->get('companies'))->pluck('id');
+                    });
+
+                    if ($companies->isNotEmpty()) {
+                        $this->model->companies()->attach($companies->toArray());
+                    }
+                }
             }
 
-            if (empty($this->user->companies)) {
+            if (empty($this->model->companies)) {
                 return;
             }
 
-            foreach ($this->user->companies as $company) {
+            foreach ($this->model->companies as $company) {
                 Artisan::call('user:seed', [
-                    'user' => $this->user->id,
+                    'user' => $this->model->id,
                     'company' => $company->id,
                 ]);
             }
+
+            if ($this->shouldSendInvitation()) {
+                $this->dispatch(new CreateInvitation($this->model));
+            }
         });
 
-        return $this->user;
+        $this->clearPlansCache();
+
+        event(new UserCreated($this->model, $this->request));
+
+        return $this->model;
+    }
+
+    /**
+     * Determine if this action is applicable.
+     */
+    public function authorize(): void
+    {
+        $limit = $this->getAnyActionLimitOfPlan();
+        if (! $limit->action_status) {
+            throw new \Exception($limit->message);
+        }
+    }
+
+    protected function shouldSendInvitation()
+    {
+        if (app()->runningUnitTests()) {
+            return true;
+        }
+
+        if (app()->runningInConsole()) {
+            return false;
+        }
+
+        if (request()->isInstall()) {
+            return false;
+        }
+
+        return true;
     }
 }

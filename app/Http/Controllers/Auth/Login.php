@@ -36,69 +36,82 @@ class Login extends Controller
     public function store(Request $request)
     {
         // Attempt to login
-        if (!auth()->attempt($request->only('email', 'password'), $request->get('remember', false))) {
-            $response = [
+        if (! auth()->attempt($request->only('email', 'password'), $request->get('remember', false))) {
+            return response()->json([
                 'status' => null,
                 'success' => false,
                 'error' => true,
                 'message' => trans('auth.failed'),
                 'data' => null,
                 'redirect' => null,
-            ];
-
-            return response()->json($response);
+            ]);
         }
 
         // Get user object
         $user = user();
 
         // Check if user is enabled
-        if (!$user->enabled) {
+        if (! $user->enabled) {
             $this->logout();
 
-            $response = [
+            return response()->json([
                 'status' => null,
                 'success' => false,
                 'error' => true,
                 'message' => trans('auth.disabled'),
                 'data' => null,
                 'redirect' => null,
-            ];
-
-            return response()->json($response);
+            ]);
         }
 
-        // Check if is customer
-        if ($user->can('read-client-portal')) {
-            $path = session('url.intended', 'portal');
+        $company = $user->withoutEvents(function () use ($user) {
+            return $user->companies()->enabled()->first();
+        });
 
-            // Path must start with 'portal' prefix
-            if (!Str::startsWith($path, 'portal')) {
-                $path = 'portal';
+        // Logout if no company assigned
+        if (! $company) {
+            $this->logout();
+
+            return response()->json([
+                'status' => null,
+                'success' => false,
+                'error' => true,
+                'message' => trans('auth.error.no_company'),
+                'data' => null,
+                'redirect' => null,
+            ]);
+        }
+
+        // Redirect to portal if is customer
+        if ($user->isCustomer()) {
+            $path = session('url.intended', '');
+
+            // Path must start with company id and 'portal' prefix
+            if (!Str::startsWith($path, $company->id . '/portal')) {
+                $path = route('portal.dashboard', ['company_id' => $company->id]);
             }
 
-            $response = [
+            return response()->json([
                 'status' => null,
                 'success' => true,
                 'error' => false,
-                'message' => null,
+                'message' => trans('auth.login_redirect'),
                 'data' => null,
                 'redirect' => url($path),
-            ];
-
-            return response()->json($response);
+            ]);
         }
 
-        $response = [
+        // Redirect to landing page if is user
+        $url = route($user->landing_page, ['company_id' => $company->id]);
+
+        return response()->json([
             'status' => null,
             'success' => true,
             'error' => false,
-            'message' => null,
+            'message' => trans('auth.login_redirect'),
             'data' => null,
-            'redirect' => redirect()->intended(route($user->landing_page))->getTargetUrl(),
-        ];
-
-        return response()->json($response);
+            'redirect' => redirect()->intended($url)->getTargetUrl(),
+        ]);
     }
 
     public function destroy()
@@ -115,6 +128,9 @@ class Login extends Controller
         // Session destroy is required if stored in database
         if (config('session.driver') == 'database') {
             $request = app('Illuminate\Http\Request');
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
             $request->session()->getHandler()->destroy($request->session()->getId());
         }
     }

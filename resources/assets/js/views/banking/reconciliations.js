@@ -29,37 +29,42 @@ const app = new Vue({
         return {
             form: new Form('reconciliation'),
             bulk_action: new BulkAction('reconciliations'),
-            reconcile: true,
+            reconcile: false,
             difference: null,
             totals: {
                 closing_balance: 0,
                 cleared_amount: 0,
                 difference: 0,
             },
+            min_due_date: false,
         }
     },
 
     mounted() {
-        if (document.getElementById('closing_balance') != null) {
-            this.totals.closing_balance = parseFloat(document.getElementById('closing_balance').value);
-        }
+       if (document.getElementById('closing_balance') != null) {
+           this.totals.closing_balance = parseFloat(document.getElementById('closing_balance').value);
+       }
 
-        if (this.form._method == 'PATCH') {
-            this.onCalculate();
-        }
+       if (this.form._method == 'PATCH') {
+           this.onCalculate();
+       }
     },
 
-    methods:{
+    methods: {
+        setDueMinDate(date) {
+            this.min_due_date = date;
+        },
+
         onReconcilition() {
             let form = document.getElementById('form-create-reconciliation');
 
-            let path = form.action +'?started_at=' + this.form.started_at + '&ended_at=' + this.form.ended_at + '&closing_balance=' + this.form.closing_balance + '&account_id=' + this.form.account_id;
+            let path = form.action + '?started_at=' + this.form.started_at + '&ended_at=' + this.form.ended_at + '&closing_balance=' + this.form.closing_balance + '&account_id=' + this.form.account_id;
 
             window.location.href = path;
         },
 
         onCalculate() {
-            this.reconcile = true;
+            this.reconcile = false;
             this.difference = null;
 
             let transactions = this.form.transactions;
@@ -75,7 +80,7 @@ const app = new Vue({
             if (transactions) {
                 // get all transactions.
                 Object.keys(transactions).forEach(function(transaction) {
-                    if (!transactions[transaction]) {
+                    if (! transactions[transaction]) {
                         return;
                     }
 
@@ -87,7 +92,6 @@ const app = new Vue({
                         expense_total += parseFloat(document.getElementById('transaction-' + type[1] + '-' + type[0]).value);
                     }
                 });
-
 
                 let transaction_total = income_total - expense_total;
 
@@ -101,11 +105,11 @@ const app = new Vue({
             }
 
             if (difference != 0) {
-                this.difference = 'table-danger';
-                this.reconcile = true;
-            } else {
-                this.difference = 'table-success';
+                this.difference = 'bg-orange-300';
                 this.reconcile = false;
+            } else {
+                this.difference = 'bg-green-100';
+                this.reconcile = true;
             }
 
             this.totals.cleared_amount = parseFloat(cleared_amount);
@@ -116,6 +120,6 @@ const app = new Vue({
             this.form.reconcile = 1;
 
             this.form.submit();
-        }
-    },
+        },
+    }
 });

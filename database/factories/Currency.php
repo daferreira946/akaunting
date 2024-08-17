@@ -21,7 +21,7 @@ class Currency extends Factory
      */
     public function definition()
     {
-        $currencies = config('money');
+        $currencies = config('money.currencies');
 
         Model::pluck('code')->each(function ($db_code) use (&$currencies) {
             unset($currencies[$db_code]);
@@ -47,6 +47,7 @@ class Currency extends Factory
             'decimal_mark' => $currency['decimal_mark'],
             'thousands_separator' => $currency['thousands_separator'],
             'enabled' => $this->faker->boolean ? 1 : 0,
+            'created_from' => 'core::factory',
         ];
     }
 

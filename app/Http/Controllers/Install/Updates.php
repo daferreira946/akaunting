@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Install;
 
 use App\Abstracts\Http\Controller;
+use App\Http\Requests\Module\Install as InstallRequest;
 use App\Events\Install\UpdateCacheCleared;
 use App\Events\Install\UpdateCopied;
 use App\Events\Install\UpdateDownloaded;
@@ -13,7 +14,6 @@ use App\Jobs\Install\FinishUpdate;
 use App\Jobs\Install\UnzipFile;
 use App\Utilities\Versions;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Http\Request;
 
 class Updates extends Controller
 {
@@ -48,7 +48,9 @@ class Updates extends Controller
                 $m->name = $row->getName();
                 $m->alias = $row->get('alias');
                 $m->installed = $row->get('version');
-                $m->latest = $updates[$alias];
+                $m->latest = $updates[$alias]->latest;
+                $m->errors = $updates[$alias]->errors;
+                $m->message = $updates[$alias]->message;
 
                 $modules[] = $m;
             }
@@ -73,7 +75,7 @@ class Updates extends Controller
         Cache::forget('updates');
         Cache::forget('versions');
 
-        event(new UpdateCacheCleared(session('company_id')));
+        event(new UpdateCacheCleared(company_id()));
 
         return redirect()->back();
     }
@@ -98,6 +100,12 @@ class Updates extends Controller
             $name = $module->getName();
 
             $installed = $module->get('version');
+
+            if (version_compare($installed, $version, '>=')) {
+                flash(trans('modules.warning.latest_version', ['module' => $name]))->warning()->important();
+
+                return $this->check();
+            }
         }
 
         return view('install.updates.edit', compact('alias', 'name', 'installed', 'version'));
@@ -110,7 +118,7 @@ class Updates extends Controller
      *
      * @return Response
      */
-    public function steps(Request $request)
+    public function steps(InstallRequest $request)
     {
         $steps = [];
 
@@ -161,7 +169,7 @@ class Updates extends Controller
      *
      * @return Response
      */
-    public function download(Request $request)
+    public function download(InstallRequest $request)
     {
         set_time_limit(900); // 15 minutes
 
@@ -197,7 +205,7 @@ class Updates extends Controller
      *
      * @return Response
      */
-    public function unzip(Request $request)
+    public function unzip(InstallRequest $request)
     {
         set_time_limit(900); // 15 minutes
 
@@ -233,7 +241,7 @@ class Updates extends Controller
      *
      * @return Response
      */
-    public function copyFiles(Request $request)
+    public function copyFiles(InstallRequest $request)
     {
         set_time_limit(900); // 15 minutes
 
@@ -269,12 +277,12 @@ class Updates extends Controller
      *
      * @return Response
      */
-    public function finish(Request $request)
+    public function finish(InstallRequest $request)
     {
         set_time_limit(900); // 15 minutes
 
         try {
-            $this->dispatch(new FinishUpdate($request['alias'], $request['version'], $request['installed'], session('company_id')));
+            $this->dispatch(new FinishUpdate($request['alias'], $request['version'], $request['installed'], company_id()));
 
             $json = [
                 'success' => true,

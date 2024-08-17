@@ -44,21 +44,21 @@ class UpdateExtraModules
             }
 
             $installed_version = $extra_module->get('version');
-            $latest_version = Versions::latest($alias);
+            $latest_version = Versions::latest($alias)?->latest;
 
             // Skip if no update available
             if (version_compare($installed_version, $latest_version, '>=')) {
                 continue;
             }
 
-            $company_id = session('company_id');
+            $company_id = company_id();
 
             $command = "update {$alias} {$company_id} {$latest_version}";
 
             if (true !== $result = Console::run($command)) {
                 $message = !empty($result) ? $result : trans('modules.errors.finish', ['module' => $alias]);
 
-                logger($message);
+                report($message);
 
                 // Stop the propagation of event if the required module failed to update
                 return false;

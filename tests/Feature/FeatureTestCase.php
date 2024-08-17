@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Auth\User;
 use App\Models\Common\Company;
-use App\Utilities\Overrider;
-use Faker\Factory;
+use Faker\Factory as Faker;
 use Tests\TestCase;
 
 abstract class FeatureTestCase extends TestCase
@@ -22,24 +20,12 @@ abstract class FeatureTestCase extends TestCase
 
         $this->withoutExceptionHandling();
 
-        $this->faker = Factory::create();
-        $this->user = User::first();
+        $this->faker = Faker::create();
+        $this->user = user_model_class()::first();
         $this->company = $this->user->companies()->first();
-
-        session(['company_id' => $this->company->id]);
-
-        // Set Company settings
-        setting()->setExtraColumns(['company_id' => $this->company->id]);
-        setting()->forgetAll();
-        setting()->load(true);
-
-        setting()->set(['email.protocol' => 'array']);
-        setting()->save();
 
         // Disable debugbar
         config(['debugbar.enabled', false]);
-
-        Overrider::load('currencies');
     }
 
     /**
@@ -49,19 +35,19 @@ abstract class FeatureTestCase extends TestCase
      * @param Company|null $company
      * @return FeatureTestCase
      */
-    public function loginAs(User $user = null, Company $company = null)
+    public function loginAs($user = null, Company $company = null)
     {
         if (!$user) {
             $user = $this->user;
         }
 
-        if (!$company) {
-            $company = $this->company;
+        if ($company) {
+            $company->makeCurrent();
         }
 
-        $this->startSession();
+        app('url')->defaults(['company_id' => company_id()]);
 
-        return $this->actingAs($user)->withSession(['company_id' => $company->id]);
+        return $this->actingAs($user);
     }
 
     public function assertFlashLevel($excepted)
@@ -72,6 +58,6 @@ abstract class FeatureTestCase extends TestCase
             $flash = $flashMessage->first();
         }
 
-        $this->assertEquals($excepted, $flash['level']);
+        $this->assertEquals($excepted, $flash['level'], json_encode($flash));
     }
 }

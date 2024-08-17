@@ -215,7 +215,7 @@ return [
     ],
 
     'empty' => [
-        'documentation' => 'Katso lisätietoa <a href=":url" target="_blank" class="text-success">dokumentaatiosta</a>.',
+        'documentation' => 'Katso lisätietoa <a href=":url" target="_blank" class="text-green">dokumentaatiosta</a>.',
         'items' => 'Tuotteet voivat olla tuotteita tai palveluita. Voit käyttää tuotteita luodessasi laskuja kun hinta, verot jne. kentät on määritetty.',
         'invoices' => 'Laskut voivat olla kertaluonteisia tai toistuvia. Voit lähettää ne asiakkaille ja alkaa hyväksyä verkkomaksuja.',
         'revenues' => 'Liikevaihto on maksullinen tulotapahtuma. Se voi olla riippumaton tietue (eli talletukset) tai se voi liittyä laskuun.',

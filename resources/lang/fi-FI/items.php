@@ -2,7 +2,7 @@
 
 return [
 
-    'sales_price'           => 'Myyntihinta',
+    'sale_price'           => 'Myyntihinta',
     'purchase_price'        => 'Ostohinta',
 
 ];

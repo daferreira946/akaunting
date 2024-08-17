@@ -4,6 +4,7 @@ return [
 
     'bill_number'           => 'Fakturanummer',
     'bill_date'             => 'Fakturadato',
+    'bill_amount'           => 'Fakturabeløp',
     'total_price'           => 'Totalpris',
     'due_date'              => 'Forfallsdato',
     'order_number'          => 'Ordrenummer',
@@ -18,11 +19,13 @@ return [
     'total'                 => 'Totalt',
 
     'item_name'             => 'Artikkelnavn | Artikkelnavn',
+    'recurring_bills'       => 'Gjentakende faktura|Gjentakende fakturaer',
 
     'show_discount'         => ':discount% rabatt',
     'add_discount'          => 'Legg til rabatt',
     'discount_desc'         => 'av delsum',
 
+    'payment_made'          => 'Betaling utført',
     'payment_due'           => 'Forfallsdato',
     'amount_due'            => 'Forfallsbeløp',
     'paid'                  => 'Betalt',
@@ -38,13 +41,17 @@ return [
     'receive_bill'          => 'Motta faktura',
     'make_payment'          => 'Opprett betaling',
 
+    'form_description' => [
+        'billing'           => 'Faktureringsdetaljer vises i regningen. Faktureringsdato brukes på kontrollpanelet og i rapporter. Velg den datoen du forventer å betale som forfallsdato.',
+    ],
+
     'messages' => [
         'draft'             => 'Dette er en <b>KLADD</b> for fakturaen som vil bli oppdatert etter at den er mottatt.',
 
         'status' => [
             'created'       => 'Opprettet :date',
             'receive' => [
-                'draft'     => 'Ikke sendt',
+                'draft'     => 'Ikke mottatt',
                 'received'  => 'Mottatt :date',
             ],
             'paid' => [

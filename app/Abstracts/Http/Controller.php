@@ -6,22 +6,19 @@ use App\Abstracts\Http\Response;
 use App\Traits\Jobs;
 use App\Traits\Permissions;
 use App\Traits\Relationships;
-use Exception;
-use ErrorException;
+use App\Traits\SearchString;
+use App\Utilities\Export;
+use App\Utilities\Import;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller as BaseController;
-use Illuminate\Support\Str;
-use Maatwebsite\Excel\Exceptions\SheetNotFoundException;
-use Maatwebsite\Excel\Facades\Excel;
-use Throwable;
 
 abstract class Controller extends BaseController
 {
-    use AuthorizesRequests, Jobs, Permissions, Relationships, ValidatesRequests;
+    use AuthorizesRequests, Jobs, Permissions, Relationships, SearchString, ValidatesRequests;
 
     /**
      * Instantiate a new controller instance.
@@ -41,9 +38,9 @@ abstract class Controller extends BaseController
      *
      * @return LengthAwarePaginator
      */
-    public function paginate($items, $perPage = 15, $page = null, $options = [])
+    public function paginate($items, $perPage = null, $page = null, $options = [])
     {
-        $perPage = $perPage ?: request('limit', setting('default.list_limit', '25'));
+        $perPage = $perPage ?: (int) request('limit', setting('default.list_limit', '25'));
 
         $page = $page ?: (Paginator::resolveCurrentPage() ?: 1);
 
@@ -78,39 +75,51 @@ abstract class Controller extends BaseController
      *
      * @param $class
      * @param $request
-     * @param $url
+     * @param $translation
      *
-     * @return mixed
+     * @return array
      */
-    public function importExcel($class, $request, $url)
+    public function importExcel($class, $request, $translation)
     {
-        try {
-            Excel::import($class, $request->file('import'));
-        } catch (SheetNotFoundException | ErrorException | Exception | Throwable $e) {
-            flash($e->getMessage())->error()->important();
-
-            return redirect()->route('import.create', explode('/', $url));
-        }
-
-        return true;
+        return Import::fromExcel($class, $request, $translation);
     }
 
     /**
      * Export the excel file or catch errors
      *
      * @param $class
-     * @param $file_name
+     * @param $translation
+     * @param $extension
      *
      * @return mixed
      */
-    public function exportExcel($class, $file_name, $extension = 'xlsx')
+    public function exportExcel($class, $translation, $extension = 'xlsx')
     {
-        try {
-            return Excel::download($class, Str::filename($file_name) . '.' . $extension);
-        } catch (ErrorException | Exception | Throwable $e) {
-            flash($e->getMessage())->error()->important();
+        return Export::toExcel($class, $translation, $extension);
+    }
 
-            return back();
+    public function setActiveTabForDocuments(): void
+    {
+        if (request()->get('list_records') == 'all') {
+            return;
+        }
+
+        $status = $this->getSearchStringValue('status');
+
+        if (empty($status)) {
+            $search = config('type.document.' . $this->type . '.route.params.unpaid.search');
+
+            request()->offsetSet('search', $search);
+            request()->offsetSet('programmatic', '1');
+        } else {
+            $unpaid = str_replace('status:', '', config('type.document.' . $this->type . '.route.params.unpaid.search'));
+            $draft = str_replace('status:', '', config('type.document.' . $this->type . '.route.params.draft.search'));
+
+            if (($status == $unpaid) || ($status == $draft)) {
+                return;
+            }
+
+            request()->offsetSet('list_records', 'all');
         }
     }
 }

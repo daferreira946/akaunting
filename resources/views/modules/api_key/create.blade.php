@@ -1,38 +1,27 @@
-@extends('layouts.modules')
+<x-layouts.admin>
+    <x-slot name="title">
+        {{ trans('modules.api_key') }}
+    </x-slot>
 
-@section('title', trans('modules.api_key'))
+    <x-slot name="content">
+        <x-form id="form-app" route="apps.api-key.store">
+            <x-form.section spacing-vertical="gap-y-2">
+                <x-slot name="body">
+                    <x-form.group.text name="api_key" placeholder="{{ trans('general.form.enter', ['field' => trans('modules.api_key')]) }}" value="{{ setting('apps.api_key', null) }}" />
 
-@section('content')
-    <div class="card">
-        {!! Form::open([
-            'route' => 'apps.api-key.store',
-            'id' => 'form-app',
-            '@submit.prevent' => 'onSubmit',
-            'files' => true,
-            'role' => 'form',
-            'class' => 'form-loading-button'
-        ]) !!}
-
-            <div class="card-body">
-                <div class="row">
-                    {{ Form::textGroup('api_key', trans('modules.api_key'), 'key', ['required' => 'required', 'placeholder' => trans('general.form.enter', ['field' => trans('modules.api_key')])], setting('apps.api_key', null), 'col-sm-12') }}
-
-                    <div class="col-sm-12">
-                            <small>{!! trans('modules.get_api_key', ['url' => 'https://akaunting.com/dashboard']) !!}</small>
+                    <div class="sm:col-span-6">
+                        <div class="text-xs">
+                            {!! trans('modules.get_api_key', ['url' => 'https://akaunting.com/dashboard']) !!}
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <div class="card-footer">
-                <div class="row save-buttons">
-                    {{ Form::saveButtons('apps.home.index') }}
-                </div>
-            </div>
+                    <div class="sm:col-span-3">
+                        <x-form.buttons cancel-route="apps.home.index" without-cancel />
+                    </div>
+                </x-slot>
+            </x-form.section>
+        </x-form>
+    </x-slot>
 
-        {!! Form::close() !!}
-    </div>
-@endsection
-
-@push('scripts_start')
-    <script src="{{ asset('public/js/modules/apps.js?v=' . version('short')) }}"></script>
-@endpush
+    <x-script folder="modules" file="apps" />
+</x-layouts.admin>

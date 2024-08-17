@@ -3,16 +3,17 @@
 namespace App\Traits;
 
 use App\Models\Auth\Permission;
-use App\Models\Auth\Role;
 use App\Traits\SearchString;
+use App\Traits\Translations;
 use App\Utilities\Reports;
 use App\Utilities\Widgets;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 trait Permissions
 {
-    use SearchString;
+    use SearchString, Translations;
 
     public function getActionsMap()
     {
@@ -247,13 +248,37 @@ trait Permissions
 
     public function createRole($name, $display_name = null, $description = null)
     {
-        $display_name = $display_name ?? Str::title($name);
+        $alias = !empty($this->alias) ? $this->alias : $name;
 
-        return Role::firstOrCreate([
+        if (empty($display_name)) {
+            $display_name = $this->findTranslation([
+                'auth.roles.' . Str::replace('-', '_', $name) . '.name',
+                $alias . '::permissions.roles.' . Str::replace('-', '_', $name) . '.name',
+                $alias . '::auth.roles.' . Str::replace('-', '_', $name) . '.name',
+            ]);
+
+            if (empty($display_name)) {
+                $display_name = Str::title(Str::replace('-', ' ', $name));
+            }
+        }
+
+        if (empty($description)) {
+            $description = $this->findTranslation([
+                'auth.roles.' . Str::replace('-', '_', $name) . '.description',
+                $alias . '::permissions.roles.' . Str::replace('-', '_', $name) . '.description',
+                $alias . '::auth.roles.' . Str::replace('-', '_', $name) . '.description',
+            ]);
+
+            if (empty($description)) {
+                $description = $display_name;
+            }
+        }
+
+        return role_model_class()::firstOrCreate([
             'name' => $name,
         ], [
             'display_name' => $display_name,
-            'description' => $description ?? $display_name,
+            'description' => $description,
         ]);
     }
 
@@ -285,7 +310,7 @@ trait Permissions
     public function detachPermission($role, $permission, $delete = true)
     {
         if (is_string($role)) {
-            $role = Role::where('name', $role)->first();
+            $role = role_model_class()::where('name', $role)->first();
         }
 
         if (empty($role)) {
@@ -365,14 +390,14 @@ trait Permissions
 
     public function getRoles($require = 'read-admin-panel')
     {
-        return Role::all()->filter(function ($role) use ($require) {
+        return role_model_class()::all()->filter(function ($role) use ($require) {
             return $require ? $role->hasPermission($require) : true;
         });
     }
 
     public function getDefaultAdminRoles($custom = null)
     {
-        $roles = Role::whereIn('name', $custom ?? ['admin', 'manager'])->get();
+        $roles = role_model_class()::whereIn('name', $custom ?? ['admin', 'manager'])->get();
 
         if ($roles->isNotEmpty()) {
             return $roles;
@@ -383,7 +408,7 @@ trait Permissions
 
     public function getDefaultPortalRoles($custom = null)
     {
-        $roles = Role::whereIn('name', $custom ?? ['customer'])->get();
+        $roles = role_model_class()::whereIn('name', $custom ?? ['customer'])->get();
 
         if ($roles->isNotEmpty()) {
             return $roles;
@@ -404,27 +429,27 @@ trait Permissions
             return;
         }
 
-        $table = request()->isApi() ? request()->segment(2) : '';
+        $table = request_is_api() ? request()->segment(2) : '';
 
         // Find the proper controller for common API endpoints
-        if (in_array($table, ['contacts', 'documents', 'transactions'])) {
+        if (in_array($table, ['contacts', 'documents'])) {
             $controller = '';
 
             // Look for type in search variable like api/contacts?search=type:customer
             $type = $this->getSearchStringValue('type');
 
-            if (!empty($type)) {
-                $alias = config('type.' . $type . '.alias');
-                $group = config('type.' . $type . '.group');
-                $prefix = config('type.' . $type . '.permission.prefix');
+            if (! empty($type)) {
+                $alias = config('type.' . Str::singular($table) . '.' . $type . '.alias');
+                $group = config('type.' . Str::singular($table) . '.' . $type . '.group');
+                $prefix = config('type.' . Str::singular($table) . '.' . $type . '.permission.prefix');
 
                 // if use module set module alias
-                if (!empty($alias)) {
+                if (! empty($alias)) {
                     $controller .= $alias . '-';
                 }
 
                 // if controller in folder it must
-                if (!empty($group)) {
+                if (! empty($group)) {
                     $controller .= $group . '-';
                 }
 
@@ -448,7 +473,7 @@ trait Permissions
             }
 
             // Add folder
-            if (strtolower($arr[1]) != 'controllers') {
+            if (! in_array(strtolower($arr[1]), ['api', 'controllers'])) {
                 $controller .= Str::kebab($arr[1]) . '-';
             }
 
@@ -472,5 +497,18 @@ trait Permissions
         $this->middleware('permission:read-' . $controller)->only('index', 'show', 'edit', 'export');
         $this->middleware('permission:update-' . $controller)->only('update', 'enable', 'disable');
         $this->middleware('permission:delete-' . $controller)->only('destroy');
+    }
+
+    public function canAccessMenuItem($title, $permissions)
+    {
+        $permissions = Arr::wrap($permissions);
+
+        $item = new \stdClass();
+        $item->title = $title;
+        $item->permissions = $permissions;
+
+        event(new \App\Events\Menu\ItemAuthorizing($item));
+
+        return user()->canAny($item->permissions);
     }
 }

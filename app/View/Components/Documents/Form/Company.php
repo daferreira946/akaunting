@@ -2,8 +2,7 @@
 
 namespace App\View\Components\Documents\Form;
 
-use App\Abstracts\View\Components\DocumentForm as Component;
-use Illuminate\Support\Str;
+use App\Abstracts\View\Components\Documents\Form as Component;
 
 class Company extends Component
 {
@@ -14,10 +13,10 @@ class Company extends Component
      */
     public function render()
     {
-        $company = user()->companies()->first();
+        $company = company();
 
-        $inputNameType = config('type.' . $this->type . '.route.parameter');
+        $inputNameType = config('type.document.' . $this->type . '.route.parameter');
 
-        return view('components.documents.form.company', compact('company','inputNameType'));
+        return view('components.documents.form.company', compact('company', 'inputNameType'));
     }
 }

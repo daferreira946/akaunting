@@ -2,22 +2,30 @@
 
 namespace App\Traits;
 
+use App\Events\Common\RelationshipCounting;
+use App\Events\Common\RelationshipDeleting;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
 trait Relationships
 {
-    public function countRelationships($model, $relationships)
+    public function countRelationships($model, $relationships): array
     {
+        $record = new \stdClass();
+        $record->model = $model;
+        $record->relationships = $relationships;
+
+        event(new RelationshipCounting($record));
+
         $counter = [];
 
-        foreach ($relationships as $relationship => $text) {
+        foreach ((array) $record->relationships as $relationship => $text) {
             if (!$c = $model->$relationship()->count()) {
                 continue;
             }
 
             $text = Str::contains($text, '::') ? $text : 'general.' . $text;
-            $counter[] = $c . ' ' . strtolower(trans_choice($text, ($c > 1) ? 2 : 1));
+            $counter[] = (($c > 1) ? $c . ' ' : null ) . strtolower(trans_choice($text, ($c > 1) ? 2 : 1));
         }
 
         return $counter;
@@ -28,24 +36,34 @@ trait Relationships
      *
      * @param  $model
      * @param  $relationships
-     *
-     * @return void
+     * @param  $permanently
      */
-    public function deleteRelationships($model, $relationships)
+    public function deleteRelationships($model, $relationships, $permanently = false): void
     {
-        foreach ((array) $relationships as $relationship) {
+        $record = new \stdClass();
+        $record->model = $model;
+        $record->relationships = $relationships;
+
+        event(new RelationshipDeleting($record));
+
+        foreach ((array) $record->relationships as $relationship) {
             if (empty($model->$relationship)) {
                 continue;
             }
 
-            $items = $model->$relationship->all();
+            $items = [];
+            $relation = $model->$relationship;
 
-            if ($items instanceof Collection) {
-                $items = $items->all();
+            if ($relation instanceof Collection) {
+                $items = $relation->all();
+            } else {
+                $items[] = $relation;
             }
 
+            $function = $permanently ? 'forceDelete' : 'delete';
+
             foreach ((array) $items as $item) {
-                $item->delete();
+                $item->$function();
             }
         }
     }

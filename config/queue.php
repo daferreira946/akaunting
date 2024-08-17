@@ -32,6 +32,7 @@ return [
 
         'sync' => [
             'driver' => 'sync',
+            'after_commit' => env('QUEUE_AFTER_COMMIT', true),
         ],
 
         'database' => [
@@ -39,6 +40,7 @@ return [
             'table' => 'jobs',
             'queue' => 'default',
             'retry_after' => 90,
+            'after_commit' => env('QUEUE_AFTER_COMMIT', true),
         ],
 
         'beanstalkd' => [
@@ -47,6 +49,7 @@ return [
             'queue' => 'default',
             'retry_after' => 90,
             'block_for' => 0,
+            'after_commit' => env('QUEUE_AFTER_COMMIT', true),
         ],
 
         'sqs' => [
@@ -54,17 +57,19 @@ return [
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'prefix' => env('SQS_PREFIX', 'https://sqs.us-east-1.amazonaws.com/your-account-id'),
-            'queue' => env('SQS_QUEUE', 'your-queue-name'),
+            'queue' => env('SQS_QUEUE', 'default'),
             'suffix' => env('SQS_SUFFIX'),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'after_commit' => env('QUEUE_AFTER_COMMIT', true),
         ],
 
         'redis' => [
             'driver' => 'redis',
-            'connection' => 'default',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'queue'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => 90,
             'block_for' => null,
+            'after_commit' => env('QUEUE_AFTER_COMMIT', true),
         ],
 
     ],

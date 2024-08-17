@@ -16,14 +16,18 @@ class Dropzone
      */
     public function handle($request, Closure $next)
     {
-        if (!in_array($request->method(), ['POST', 'PATCH'])) {
+        if (! in_array($request->method(), ['POST', 'PATCH', 'PUT'])) {
             return $next($request);
         }
 
         $multiple = false;
 
         foreach ($request->all() as $key => $value) {
-            if (!is_array($value)) {
+            if (! is_array($value)) {
+                continue;
+            }
+
+            if ($key == 'setting' && Arr::has($value, 'company_logo')) {
                 continue;
             }
 
@@ -32,8 +36,8 @@ class Dropzone
 
             foreach ($value as $index => $parameter) {
                 // single file uploaded..
-                if (!is_array($parameter) && !$multiple) {
-                    if (!Arr::has($value, 'dropzone')) {
+                if (! is_array($parameter) && ! $multiple) {
+                    if (! Arr::has($value, 'dropzone')) {
                         continue;
                     }
 
@@ -44,10 +48,18 @@ class Dropzone
                 }
 
                 // multiple file uploaded..
-                if (!Arr::has($parameter, 'dropzone')) {
-                    $files[] = $parameter;
+                if (is_array($parameter)) {
+                    if (! Arr::has($parameter, 'dropzone')) {
+                        $files[] = $parameter;
 
-                    continue;
+                        continue;
+                    }
+                } else if (is_object($parameter)) {
+                    if (empty($parameter->dropzone)) {
+                        $files[] = $parameter;
+
+                        continue;
+                    }
                 }
 
                 $multiple = true;

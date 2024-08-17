@@ -3,28 +3,22 @@
 namespace App\Http\Controllers\Purchases;
 
 use App\Abstracts\Http\Controller;
-use App\Exports\Purchases\Bills as Export;
+use App\Exports\Purchases\Bills\Bills as Export;
 use App\Http\Requests\Common\Import as ImportRequest;
 use App\Http\Requests\Document\Document as Request;
-use App\Imports\Purchases\Bills as Import;
-use App\Jobs\Banking\CreateBankingDocumentTransaction;
+use App\Imports\Purchases\Bills\Bills as Import;
 use App\Jobs\Document\CreateDocument;
 use App\Jobs\Document\DeleteDocument;
 use App\Jobs\Document\DuplicateDocument;
 use App\Jobs\Document\UpdateDocument;
 use App\Models\Document\Document;
-use App\Models\Setting\Currency;
 use App\Traits\Documents;
-use File;
 
 class Bills extends Controller
 {
     use Documents;
 
-    /**
-     * @var string
-     */
-    public $type = Document::BILL_TYPE;
+    public string $type = Document::BILL_TYPE;
 
     /**
      * Display a listing of the resource.
@@ -33,9 +27,13 @@ class Bills extends Controller
      */
     public function index()
     {
-        $bills = Document::bill()->with('contact', 'transactions')->collect(['issued_at' => 'desc']);
+        $this->setActiveTabForDocuments();
 
-        return $this->response('purchases.bills.index', compact('bills'));
+        $bills = Document::bill()->with('contact', 'items', 'item_taxes', 'last_history', 'transactions', 'totals', 'histories', 'media')->collect(['issued_at' => 'desc']);
+
+        $total_bills = Document::bill()->count();
+
+        return $this->response('purchases.bills.index', compact('bills', 'total_bills'));
     }
 
     /**
@@ -47,19 +45,6 @@ class Bills extends Controller
      */
     public function show(Document $bill)
     {
-        // Get Bill Totals
-        foreach ($bill->totals_sorted as $bill_total) {
-            $bill->{$bill_total->code} = $bill_total->amount;
-        }
-
-        $total = money($bill->total, $bill->currency_code, true)->format();
-
-        $bill->grand_total = money($total, $bill->currency_code)->getAmount();
-
-        if (!empty($bill->paid)) {
-            $bill->grand_total = round($bill->total - $bill->paid, config('money.' . $bill->currency_code . '.precision'));
-        }
-
         return view('purchases.bills.show', compact('bill'));
     }
 
@@ -87,7 +72,7 @@ class Bills extends Controller
         if ($response['success']) {
             $response['redirect'] = route('bills.show', $response['data']->id);
 
-            $message = trans('messages.success.added', ['type' => trans_choice('general.bills', 1)]);
+            $message = trans('messages.success.created', ['type' => trans_choice('general.bills', 1)]);
 
             flash($message)->success();
         } else {
@@ -95,7 +80,7 @@ class Bills extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -128,15 +113,19 @@ class Bills extends Controller
      */
     public function import(ImportRequest $request)
     {
-        if (true !== $result = $this->importExcel(new Import, $request, 'purchases/bills')) {
-            return $result;
+        $response = $this->importExcel(new Import, $request, trans_choice('general.bills', 2));
+
+        if ($response['success']) {
+            $response['redirect'] = route('bills.index');
+
+            flash($response['message'])->success();
+        } else {
+            $response['redirect'] = route('import.create', ['purchases', 'bills']);
+
+            flash($response['message'])->error()->important();
         }
 
-        $message = trans('messages.success.imported', ['type' => trans_choice('general.bills', 2)]);
-
-        flash($message)->success();
-
-        return redirect()->route('bills.index');
+        return response()->json($response);
     }
 
     /**
@@ -174,7 +163,7 @@ class Bills extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -200,7 +189,7 @@ class Bills extends Controller
         } else {
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -253,6 +242,24 @@ class Bills extends Controller
     }
 
     /**
+     * Restore the bill.
+     *
+     * @param  Document $bill
+     *
+     * @return Response
+     */
+    public function restoreBill(Document $bill)
+    {
+        event(new \App\Events\Document\DocumentRestored($bill));
+
+        $message = trans('documents.messages.restored', ['type' => trans_choice('general.bills', 1)]);
+
+        flash($message)->success();
+
+        return redirect()->back();
+    }
+
+    /**
      * Print the bill.
      *
      * @param  Document $bill
@@ -290,30 +297,6 @@ class Bills extends Controller
         $file_name = $this->getDocumentFileName($bill);
 
         return $pdf->download($file_name);
-    }
-
-    /**
-     * Mark the bill as paid.
-     *
-     * @param  Document $bill
-     *
-     * @return Response
-     */
-    public function markPaid(Document $bill)
-    {
-        try {
-            $this->dispatch(new CreateBankingDocumentTransaction($bill, ['type' => 'expense']));
-
-            $message = trans('documents.messages.marked_paid', ['type' => trans_choice('general.bills', 1)]);
-
-            flash($message)->success();
-        } catch(\Exception $e) {
-            $message = $e->getMessage();
-
-            flash($message)->error();
-        }
-
-        return redirect()->back();
     }
 
     protected function prepareBill(Document $bill)

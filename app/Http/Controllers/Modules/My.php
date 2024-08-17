@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Modules;
 
 use App\Abstracts\Http\Controller;
-use App\Models\Module\Module;
 use App\Traits\Modules;
 
 class My extends Controller
@@ -17,10 +16,9 @@ class My extends Controller
      */
     public function index()
     {
-        $purchased = $this->getMyModules();
-        $modules = $this->getInstalledModules();
-        $installed = Module::where('company_id', '=', session('company_id'))->pluck('enabled', 'alias')->toArray();
+        $purchase = $this->getMyModules(['query' => ['limit' => 16]]);
+        $installed = $this->getInstalledModules();
 
-        return $this->response('modules.my.index', compact('purchased', 'modules', 'installed'));
+        return $this->response('modules.my.index', compact('purchase', 'installed'));
     }
 }

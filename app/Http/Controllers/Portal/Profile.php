@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Portal;
 
 use App\Abstracts\Http\Controller;
 use App\Http\Requests\Portal\Profile as Request;
-use App\Models\Auth\User;
 use App\Traits\Uploads;
 
 class Profile extends Controller
@@ -41,12 +40,13 @@ class Profile extends Controller
      *
      * @return Response
      */
-    public function update(User $user, Request $request)
+    public function update($user_id, Request $request)
     {
         $user = user();
 
         // Do not reset password if not entered/changed
         if (empty($request['password'])) {
+            unset($request['current_password']);
             unset($request['password']);
             unset($request['password_confirmation']);
         }

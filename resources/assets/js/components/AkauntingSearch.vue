@@ -1,84 +1,171 @@
 <template>
-    <div :id="'search-field-' + _uid" class="searh-field tags-input__wrapper">
-        <div class="tags-group" v-for="(filter, index) in filtered" :index="index">
-            <span v-if="filter.option" class="el-tag el-tag--primary el-tag--small el-tag--light el-tag-option">
-                {{ filter.option }}
+    <div
+        :id="'search-field-' + _uid"
+        class="lg:h-12 my-5 searh-field flex flex-col lg:flex-row border-b transition-all js-search"
+        :class="input_focus ? 'border-gray-500' : 'border-gray-300'"
+    >
+        <div class="w-full lg:w-auto flex overflow-x-scroll large-overflow-unset" :class="filtered.length ? 'h-12 lg:h-auto' : ''">
+            <div class="tags-group group items-center" style="display:contents;" v-for="(filter, index) in filtered" :index="index">
+                <span v-if="filter.option" class="flex items-center bg-purple-lighter text-black border-0 mt-3 px-3 py-4 text-sm cursor-pointer el-tag el-tag--small el-tag-option">
+                    {{ filter.option }}
 
-                <i v-if="!filter.operator && !filter.value" class="el-tag__close el-icon-close" @click="onFilterDelete(index)"></i>
-            </span>
+                    <i v-if="!filter.operator && !filter.value" class="mt-1 ltr:-right-2 rtl:left-0 rtl:right-0 el-tag__close el-icon-close" style="font-size: 16px;" @click="onFilterDelete(index)"></i>
+                </span>
 
-            <span v-if="filter.operator" class="el-tag el-tag--primary el-tag--small el-tag--light el-tag-operator">
-                <i v-if="filter.operator == '='" class="fas fa-equals"></i>
-                <i v-else class="fas fa-not-equal"></i>
+                <span v-if="filter.operator" class="flex items-center bg-purple-lighter text-black border-2 border-body border-l border-r border-t-0 border-b-0 mt-3 px-3 py-4 text-sm cursor-pointer el-tag el-tag--small el-tag-operator" style="margin-left:0; margin-right:0;">
+                    <span v-if="filter.operator == '='" class="material-icons text-2xl">drag_handle</span>
+                    <span v-else-if="filter.operator == '><'" class="material-icons text-2xl transform rotate-90">height</span>
+                    <span v-else class="w-5">
+                        <img :src="not_equal_image" class="w-5 h-5 object-cover block" />
+                    </span>
 
-                <i v-if="!filter.value" class="el-tag__close el-icon-close" @click="onFilterDelete(index)"></i>
-            </span>
+                    <i v-if="!filter.value" class="mt-1 ltr:-right-2 rtl:left-0 rtl:right-0 el-tag__close el-icon-close" style="font-size: 16px;" @click="onFilterDelete(index)"></i>
+                </span>
 
-            <span v-if="filter.value" class="el-tag el-tag--primary el-tag--small el-tag--light el-tag-value">
-                {{ filter.value }}
+                <span v-if="filter.value" class="flex items-center bg-purple-lighter text-black border-0 mt-3 px-3 py-4 text-sm cursor-pointer el-tag el-tag--small el-tag-value">
+                    <span v-if="Array.isArray(filter.value)">
+                        <span v-for="(multiple_filter, index) in filter.value" v-if="index < 3" class="-mr-0.5">
+                            {{ (index == 0) ? multiple_filter.value : ', ' + multiple_filter.value }}
+                        </span>
+                        <span v-if="filter.value.length > 3" class="-mr-0.5">
+                           &nbsp; {{ ' + ' + (filter.value.length - 3) + ' ' + moreText }}
+                        </span>
+                    </span>
+                    <span v-else>
+                        {{ filter.value }}
+                    </span>
 
-                <i class="el-tag__close el-icon-close" @click="onFilterDelete(index)"></i>
-            </span>
+                    <i class="mt-1 ltr:-right-2 rtl:left-0 rtl:right-0 el-tag__close el-icon-close" style="font-size: 16px;" @click="onFilterDelete(index)"></i>
+                </span>
+            </div>
         </div>
 
-        <div class="dropdown input-full">
+        <div class="relative w-full h-full flex">
             <input
                 v-if="!show_date"
                 type="text"
-                class="form-control"
-                :placeholder="placeholder"
+                class="w-full h-12 lg:h-auto bg-transparent text-black text-sm border-0 pb-0 focus:outline-none focus:ring-transparent focus:border-purple-100"
+                :class="!show_icon ? 'ltr:pr-4 rtl:pl-4' : 'ltr:pr-10 rtl:pl-10'"
+                :placeholder="dynamicPlaceholder"
                 :ref="'input-search-field-' + _uid"
                 v-model="search"
                 @focus="onInputFocus"
                 @input="onInput"
+                @blur="onBlur"
                 @keyup.enter="onInputConfirm"
             />
 
             <flat-picker
                 v-else
                 @on-open="onInputFocus"
+                @blur="onBlur"
                 :config="dateConfig"
-                class="form-control datepicker"
-                :placeholder="placeholder"
+                class="w-full h-12 lg:h-auto bg-transparent text-black text-sm border-0 pb-0 focus:outline-none focus:ring-transparent focus:border-purple-100 datepicker"
+                :class="!show_icon ? 'ltr:pr-4 rtl:pl-4' : 'ltr:pr-10 rtl:pl-10'"
+                :placeholder="dynamicPlaceholder"
                 :ref="'input-search-date-field-' + _uid"
-                v-model="search"
+                value=""
                 @focus="onInputFocus"
-                @input="onInputDateSelected"
+                @on-close="onInputDateSelected"
                 @keyup.enter="onInputConfirm"
             >
             </flat-picker>
 
-            <button type="button" class="btn btn-link clear" @click="onSearchAndFilterClear">
-                <i class="el-tag__close el-icon-close"></i>
+            <button
+                v-if="show_icon"
+                @focus="onInputFocus"
+                v-show="show_button"
+                @click="onInputConfirm"
+                class="absolute ltr:right-0.5 rtl:left-0.5 z-50 mt-3 text-sm text-gray-700 font-medium px-2.5 py-1 h-7 rounded-lg"
+                :class="search.length == 0 ? 'opacity-60 cursor-default' : 'cursor-pointer hover:bg-gray-100'"
+                :disabled="search.length == 0"
+            >
+                <div class="flex">
+                    <span>search</span>
+                    <span class="material-icons-outlined text-sm ltr:scale-x-100 rtl:-scale-x-100 ltr:ml-1 rtl:mr-1 mt-0.5">
+                        keyboard_return
+                    </span>
+                </div>
             </button>
 
-            <div :id="'search-field-option-' + _uid" class="dropdown-menu" :class="[{'show': visible.options}]">
-                <li ref="" class="dropdown-item" v-for="option in filteredOptions" :data-value="option.key">
-                    <button type="button" class="btn btn-link" @click="onOptionSelected(option.key)">{{ option.value }}</button>
+            <button type="button" class="absolute ltr:right-0 rtl:left-0 top-4 lg:top-2 clear" v-if="show_close_icon" @click="onSearchAndFilterClear">
+                <span class="material-icons text-sm">close</span>
+            </button>
+
+            <div :id="'search-field-option-' + _uid" class="absolute top-12 ltr:left-8 rtl:right-8 py-2 bg-white rounded-md border border-gray-200 shadow-xl z-20 list-none dropdown-menu" :class="[{'show': visible.options}]">
+                <li ref="" class="w-full flex items-center px-2 h-9 leading-9 whitespace-nowrap" v-for="option in filteredOptions" :data-value="option.key">
+                    <button type="button" class="w-full h-full flex items-center rounded-md px-2 text-sm hover:bg-lilac-100" data-btn="btn btn-link" @click="onOptionSelected(option.key)">{{ option.value }}</button>
                 </li>
 
-                <li ref="" v-if="search" class="dropdown-item">
-                    <button type="button" class="btn btn-link" @click="onInputConfirm">{{ searchText }}</button>
-                </li>
-            </div>
-
-            <div :id="'search-field-operator-' + _uid" class="dropdown-menu operator" :class="[{'show': visible.operator}]">
-                <li ref="" class="dropdown-item">
-                    <button type="button" class="btn btn-link" @click="onOperatorSelected('=')"><i class="fas fa-equals"></i><span class="btn-helptext d-none">{{ operatorIsText }}</span></button>
-                </li>
-
-                <li ref="" class="dropdown-item">
-                    <button type="button" class="btn btn-link" @click="onOperatorSelected('!=')"><i class="fas fa-not-equal"></i><span class="btn-helptext d-none">{{ operatorIsNotText }}</span></button>
+                <li ref="" v-if="search" class="p-2 hover:bg-lilac-900 dropdown-item">
+                    <button type="button" class="text-left" @click="onInputConfirm">{{ searchText }}</button>
                 </li>
             </div>
 
-            <div :id="'search-field-value-' + _uid" class="dropdown-menu" :class="[{'show': visible.values}]">
-                <li ref="" class="dropdown-item" v-for="(value) in filteredValues" :data-value="value.key">
-                    <button type="button" class="btn btn-link" @click="onValueSelected(value.key)">{{ value.value }}</button>
+            <div :id="'search-field-operator-' + _uid" class="absolute top-12 ltr:left-8 rtl:right-8 py-2 bg-white rounded-md border border-gray-200 shadow-xl z-20 list-none dropdown-menu operator" :class="[{'show': visible.operator}]">
+                <li v-if="equal" class="w-full flex items-center px-2 h-9 leading-9 whitespace-nowrap">
+                    <button type="button" class="w-full h-full flex items-center rounded-md px-2 text-sm hover:bg-lilac-100" @click="onOperatorSelected('=')">
+                        <span class="material-icons text-2xl transform pointer-events-none">drag_handle</span>
+                        <span class="text-gray hidden pointer-events-none">{{ operatorIsText }}
+                        </span>
+                    </button>
                 </li>
 
-                <li ref="" class="dropdown-item" v-if="!filteredValues.length">
-                    <button type="button" class="btn btn-link">{{ noMatchingDataText }}</button>
+                <li v-if="not_equal" class="w-full flex items-center px-2 h-9 leading-9 whitespace-nowrap">
+                    <button type="button" class="w-full h-full flex items-center rounded-md px-2 text-sm hover:bg-lilac-100" @click="onOperatorSelected('!=')">
+                        <img :src="not_equal_image" class="w-6 h-6 block m-auto pointer-events-none" />
+                        <span class="text-gray hidden pointer-events-none">{{ operatorIsNotText }}</span>
+                    </button>
+                </li>
+
+                <li v-if="range" class="w-full flex items-center px-2 h-9 leading-9 whitespace-nowrap">
+                    <button type="button" class="w-full h-full flex items-center rounded-md px-2 text-sm hover:bg-lilac-100" @click="onOperatorSelected('><')">
+                        <span class="material-icons text-2xl transform rotate-90 pointer-events-none">height</span>
+                        <span class="text-gray hidden pointer-events-none">{{ operatorIsNotText }}</span>
+                    </button>
+                </li>
+            </div>
+
+            <div :id="'search-field-value-' + _uid" class="absolute top-12 ltr:left-8 rtl:right-8 py-2 bg-white rounded-md border border-gray-200 shadow-xl z-20 list-none dropdown-menu" :class="[{'show': visible.values}]">
+                <li ref="" class="w-full flex items-center px-2 h-9 leading-9 whitespace-nowrap" v-for="(value) in filteredValues" :data-value="value.key">
+                    <div v-if="! multiple" class="w-full flex items-center h-9 leading-9 whitespace-nowrap">
+                        <button type="button" class="w-full h-full flex items-center rounded-md px-2 text-sm hover:bg-lilac-100" @click="onValueSelected(value.key)">
+                            <i v-if="value.level != null" class="material-icons align-middle text-lg ltr:mr-2 rtl:ml-2 pointer-events-none">subdirectory_arrow_right</i>
+                            {{ value.value }}
+                        </button>
+                    </div>
+
+                    <div v-else class="w-full flex items-center h-9 leading-9 whitespace-nowrap rounded-md hover:bg-lilac-100">
+                        <div class="custom-control custom-checkbox flex text-sm px-2 ">
+                            <input type="checkbox" name="multiple-filter-values" :id="'search-field-value-' + _uid + '-multiple-' + value.key"  :value="value.key" v-model="multiple_values" data-type="single" class="rounded-sm text-purple border-gray-300 cursor-pointer disabled:bg-gray-200 focus:outline-none focus:ring-transparent mt-0.5">
+
+                            <label :for="'search-field-value-' + _uid + '-multiple-' + value.key" class="w-full h-full flex items-center rounded-md px-2">
+                                <i v-if="value.level != null" class="material-icons align-middle text-lg ltr:mr-2 rtl:ml-2 pointer-events-none">subdirectory_arrow_right</i>
+                                {{ value.value }}
+                            </label>
+                        </div>
+                    </div>
+                </li>
+
+                <li v-if="multiple && filteredValues.length" 
+                    :disabled="! multiple_values.length" 
+                    @click="onMultipleValueSelected()"
+                    :class="[{
+                        'cursor-pointer' : multiple_values.length,
+                        'hover:bg-purple': multiple_values.length,
+                    },
+                    {
+                        'cursor-not-allowed' : ! multiple_values.length,
+                        'hover:bg-purple-200': ! multiple_values.length,
+                    }]"
+                    class="w-full flex items-center px-5 h-9 leading-9 whitespace-nowrap border-t relative text-purple hover:text-white hover:rounded-b-md"
+                    style="margin-bottom: -9px;"
+                >
+                    {{ operatorOkText }}
+                </li>
+
+                <li class="w-full flex items-center px-2 h-9 leading-9 whitespace-nowrap" v-if="!filteredValues.length">
+                    <button type="button" class="w-full h-full flex items-center rounded-md px-2 text-sm hover:bg-lilac-100">{{ noMatchingDataText }}</button>
                 </li>
             </div>
         </div>
@@ -86,8 +173,10 @@
 </template>
 
 <script>
+import moment from 'moment';
 import flatPicker from "vue-flatpickr-component";
 import "flatpickr/dist/flatpickr.css";
+import {getQueryVariable} from './../plugins/functions';
 
 export default {
     name: 'akaunting-search',
@@ -102,43 +191,76 @@ export default {
             default: 'Search or filter results...',
             description: 'Input placeholder'
         },
+
+        selectPlaceholder: {
+            type: String,
+        },
+
+        enterPlaceholder: {
+            type: String,
+        },
+
         searchText: {
             type: String,
             default: 'Search for this text',
             description: 'Input placeholder'
         },
+
+        moreText: {
+            type: String,
+            default: 'more',
+            description: 'Input placeholder'
+        },
+
         operatorIsText: {
             type: String,
             default: 'is',
             description: 'Operator is "="'
         },
+
         operatorIsNotText: {
             type: String,
             default: 'is not',
             description: 'Operator is not "!="'
         },
+
+        operatorOkText: {
+            type: String,
+            default: 'Ok',
+            description: 'Operator multiple button text'
+        },
+
         noDataText: {
             type: String,
             default: 'No Data',
             description: "Selectbox empty options message"
         },
+
         noMatchingDataText: {
             type: String,
             default: 'No Matchign Data',
             description: "Selectbox search option not found item message"
         },
+
         value: {
             type: String,
             default: null,
             description: 'Search attribute value'
         },
+
         filters: {
             type: Array,
             default: () => [],
             description: 'List of filters'
         },
 
-        dateConfig: null,
+        defaultFiltered: {
+            type: Array,
+            default: () => [],
+            description: 'List of filters'
+        },
+
+        dateConfig: null
     },
 
     model: {
@@ -159,23 +281,48 @@ export default {
                 values: false,
             },
 
+            equal: true,
+            not_equal: true,
+            multiple: false,
+            range: false,
             option_values: [],
             selected_options: [],
             selected_operator: [],
             selected_values: [],
             values: [],
+            multiple_values: [],
+            current_operator: '',
             current_value: null,
             show_date: false,
+            show_button: false,
+            show_close_icon: false,
+            show_icon: true,
+            not_equal_image: app_url +  "/public/img/tailwind_icons/not-equal.svg",
+            input_focus: false,
+            defaultPlaceholder: this.placeholder,
+            dynamicPlaceholder: this.placeholder,
+            show_date_range: false,
         };
     },
 
     methods: {
         onInputFocus() {
-            if (!this.filter_list.length) {
+            if (this.show_date_range) {
                 return;
             }
 
-            if (this.filter_last_step != 'values' || (this.filter_last_step == 'values' && this.selected_options[this.filter_index].type != 'date')) {
+            this.show_button = true;
+
+            if (! this.filter_list.length && this.filter_last_step == 'options') {
+                return;
+            }
+
+            if (this.filter_last_step != 'values'
+                || (
+                    this.filter_last_step == 'values'
+                    && this.selected_options[this.filter_index].type != 'date'
+                )
+            ) {
                 this.visible[this.filter_last_step] = true;
 
                 this.$nextTick(() => {
@@ -189,15 +336,35 @@ export default {
                 });
             }
 
-            console.log('Focus :' + this.filter_last_step);
+            this.input_focus = true;
         },
 
-        onInputDateSelected(event) {
-            this.filtered[this.filter_index].value = event;
+        onBlur() {
+            this.input_focus = false;
+        },
+
+        onInputDateSelected(selectedDates, dateStr, instance) {
+            if (! selectedDates.length) { // not selected date return here..
+                return;
+            }
+
+            this.filtered[this.filter_index].value = dateStr;
+
+            let date = selectedDates.length ? instance.formatDate(selectedDates[0], 'Y-m-d') : null;
+
+            if (selectedDates.length > 1) {
+                let dates = [];
+
+                selectedDates.forEach(function (item) {
+                    dates.push(instance.formatDate(item, 'Y-m-d'));
+                }, this);
+
+                date = dates.join('-to-');
+            }
 
             this.selected_values.push({
-                key: event,
-                value: event,
+                key: date,
+                value: dateStr,
             });
 
             this.$emit('change', this.filtered);
@@ -225,21 +392,32 @@ export default {
                 };
             }
 
-            this.show_date = false;
-
             this.filter_last_step = 'options';
         },
 
         onInput(evt) {
             this.search = evt.target.value;
+            this.show_button = true;
 
-            let option_url = this.selected_options[this.filter_index].url;
+            let option_url = this.selected_options.length > 0 && this.selected_options[this.filter_index] !== undefined ? this.selected_options[this.filter_index].url : '';
 
             if (this.search) {
-                option_url += '?search="' + this.search + '" limit:10';
+                if (option_url.indexOf('?') === -1) {
+                    option_url += '?search="' + this.search + '" limit:10';
+                } else {
+                    if (option_url.indexOf('search=') === -1) {
+                        option_url += '&search="' + this.search + '" limit:10';
+                    } else {
+                        option_url += ' "' + this.search + '" limit:10';
+                    }
+                }
             }
 
             if (option_url) {
+                if (option_url.indexOf('limit') === -1) {
+                    option_url += ' limit:10';
+                }
+
                 window.axios.get(option_url)
                 .then(response => {
                     this.values = [];
@@ -265,10 +443,20 @@ export default {
 
         onInputConfirm() {
             let path = window.location.href.replace(window.location.search, '');
+            let list = getQueryVariable('list_records');
             let args = '';
+            let sign = '?';
+            let date_range_path = '';
+            let redirect = true;
+
+            if (list) {
+                args = '?list_records=' + list;
+                sign = '&';
+            }
 
             if (this.search) {
-                args += '?search="' + this.search + '" ';
+                args += sign + 'search="' + this.search + '" ';
+                sign = '&';
             }
 
             let now = new Date();
@@ -279,37 +467,89 @@ export default {
             search_string[path] = {};
 
             this.filtered.forEach(function (filter, index) {
-                if (!args) {
-                    args += '?search=';
+                if (list) {
+                    args += sign + 'search=';
+                    sign = '&';
+                }
+
+                if (! args) {
+                    args += sign + 'search=';
+                    sign = '&';
+                }
+
+                if (! this.selected_operator.length || ! this.selected_values.length) {
+                    redirect = false;
+                    return;
+                }
+
+                if (this.selected_options[index].key == 'date_range') {
+                    let dates = this.selected_values[index].key.split('-to-');
+
+                    date_range_path += sign + 'start_date=' + dates[0];
+                    date_range_path += '&end_date=' + dates[1];
+
+                    return;
                 }
 
                 if (this.selected_operator[index].key == '!=') {
                     args += 'not ';
                 }
 
-                args += this.selected_options[index].key + ':' + this.selected_values[index].key + ' ';
+                if (this.selected_operator[index].key == '><') {
+                    let dates = this.selected_values[index].key.split('-to-');
+
+                    args += this.selected_options[index].key + '>=' + dates[0] + ' ';
+                    args += this.selected_options[index].key + '<=' + dates[1] + ' ';
+                } else if (this.selected_options[index].multiple) {
+                    args += this.selected_options[index].key + ':';
+
+                    let multiple_values = '';
+
+                    this.selected_values[index].forEach(function (value, index) {
+                        if (index == 0) {
+                            multiple_values += value.key;
+                        } else {
+                            multiple_values += ',' + value.key;
+                        }
+                    }, this);
+
+                    args +=  multiple_values + ' ';
+                }
+                else {
+                    args += this.selected_options[index].key + ':' + this.selected_values[index].key + ' ';
+                }
 
                 search_string[path][this.selected_options[index].key] = {
-                    'key': this.selected_values[index].key,
-                    'value': this.selected_values[index].value,
+                    'key': Array.isArray(this.selected_values[index]) ? this.selected_values[index] : this.selected_values[index].key,
+                    'value': Array.isArray(this.selected_values[index]) ? this.selected_values[index] : this.selected_values[index].value,
                     'operator': this.selected_operator[index].key,
                 };
             }, this);
 
             Cookies.set('search-string', search_string, expires);
 
-            window.location = path + args;
+            if (redirect) {
+                window.location = path + args + date_range_path;
+            }
         },
 
         onOptionSelected(value) {
             this.current_value = value;
+            this.equal = true;
+            this.not_equal = true;
+            this.multiple = false;
+            this.range = false;
+
+            this.onChangeSearchAndFilterText(this.selectPlaceholder, false);
 
             let option = false;
             let option_url = false;
+            let option_fields = {};
 
             for (let i = 0; i < this.filter_list.length; i++) {
                 if (this.filter_list[i].key == value) {
                     option = this.filter_list[i].value;
+                    option_fields = (this.filter_list[i]['value_option_fields']) ? this.filter_list[i].value_option_fields : {};
 
                     if (this.filter_list[i].values !== 'undefined' && Object.keys(this.filter_list[i].values).length) {
                         this.option_values[value] = this.convertOption(this.filter_list[i].values);
@@ -321,6 +561,21 @@ export default {
 
                     if (typeof this.filter_list[i].type !== 'undefined' && this.filter_list[i].type == 'boolean') {
                         this.option_values[value] = this.filter_list[i].values;
+                    }
+
+                    if (typeof this.filter_list[i].type !== 'undefined' && this.filter_list[i].multiple !== 'undefined' && this.filter_list[i].multiple) {
+                        this.multiple = true;
+                    }
+
+                    if (typeof this.filter_list[i].type !== 'undefined' && this.filter_list[i].type == 'date') {
+                        this.range = true;
+                    }
+
+                    if (typeof this.filter_list[i].operators !== 'undefined' && Object.keys(this.filter_list[i].operators).length) {
+                        this.equal = (typeof this.filter_list[i].operators.equal) ? this.filter_list[i].operators.equal : this.equal;
+                        this.not_equal = (typeof this.filter_list[i].operators['not_equal']) ? this.filter_list[i].operators['not_equal'] : this.not_equal;
+                        this.multiple = (typeof this.filter_list[i].operators['multiple']) ? this.filter_list[i].operators['multiple'] : this.multiple;
+                        this.range = (typeof this.filter_list[i].operators['range']) ? this.filter_list[i].operators['range'] : this.range;
                     }
 
                     this.selected_options.push(this.filter_list[i]);
@@ -348,25 +603,10 @@ export default {
                 }
             }
 
-            if (!this.option_values[value] && option_url) {
-                window.axios.get(option_url)
-                .then(response => {
-                    let data = response.data.data;
-
-                    this.values = [];
-
-                    data.forEach(function (item) {
-                        this.values.push({
-                            key: (item.code) ? item.code : item.id,
-                            value: (item.title) ? item.title : (item.display_name) ? item.display_name : item.name
-                        });
-                    }, this);
-
-                    this.option_values[value] = this.values;
-                })
-                .catch(error => {
-
-                });
+            if (! this.option_values[value] && option_url) {
+                this.onSetOptionValue(value, option_url, option_fields);
+            } else if (this.option_values[value] && ! this.option_values[value].length && option_url) { 
+                this.onSetOptionValue(value, option_url, option_fields);
             } else {
                 this.values = (this.option_values[value]) ? this.option_values[value] : [];
             }
@@ -382,6 +622,40 @@ export default {
             };
 
             this.filter_last_step = 'operator';
+        },
+
+        onSetOptionValue(value, option_url, option_fields) {
+            if (option_url.indexOf('limit') === -1) {
+                option_url += ' limit:10';
+            }
+
+            window.axios.get(option_url)
+            .then(response => {
+                let data = response.data.data;
+
+                this.values = [];
+
+                data.forEach(function (item) {
+                    if (Object.keys(option_fields).length) {
+                        this.values.push({
+                            key: (option_fields['key']) ? item[option_fields['key']] : (item.code) ? item.code : item.id,
+                            value: (option_fields['value']) ? item[option_fields['value']] : (item.title) ? item.title : (item.display_name) ? item.display_name : item.name,
+                            level: (option_fields['level']) ? item[option_fields['level']] : (item.level) ? item.level : null,
+                        });
+                    } else {
+                        this.values.push({
+                            key: (item.code) ? item.code : item.id,
+                            value: (item.title) ? item.title : (item.display_name) ? item.display_name : item.name,
+                            level: (item.level) ? item.level : null,
+                        });
+                    }
+                }, this);
+
+                this.option_values[value] = this.values;
+            })
+            .catch(error => {
+
+            });
         },
 
         onOperatorSelected(value) {
@@ -403,6 +677,9 @@ export default {
                 this.show_date = true;
 
                 this.$nextTick(() => {
+                    let mode = this.selected_operator[this.filter_index].key == '><' ? 'range' : 'single';
+
+                    this.$refs['input-search-date-field-' + this._uid].fp.set('mode', mode);
                     this.$refs['input-search-date-field-' + this._uid].fp.open();
                 });
 
@@ -413,6 +690,8 @@ export default {
                 };
             }
 
+            this.current_operator = value;
+
             this.selected_operator.push({
                 key: value
             });
@@ -421,7 +700,14 @@ export default {
         },
 
         onValueSelected(value) {
+            if (this.current_value == 'date_range' && value == 'custom') {
+                return this.onValueDateRange();
+            }
+
+            this.show_close_icon = true;
             let select_value = false;
+
+            this.onChangeSearchAndFilterText(this.enterPlaceholder, false);
 
             for (let i = 0; i < this.values.length; i++) {
                 if (this.values[i].key == value) {
@@ -463,7 +749,75 @@ export default {
             this.search = '';
         },
 
+        onMultipleValueSelected() {
+            this.show_close_icon = true;
+            let select_values = [];
+
+            this.onChangeSearchAndFilterText(this.enterPlaceholder, false);
+
+            for (let i = 0; i < this.values.length; i++) {
+                this.multiple_values.forEach(function (value, index) {
+                    if (this.values[i].key == value) {
+                        select_values.push(this.values[i]);
+                    }
+                }, this);
+            }
+
+            this.selected_values.push(select_values);
+            //this.option_values[this.current_value].splice(i, 1);
+
+            this.filtered[this.filter_index].value = select_values;
+
+            this.$emit('change', this.filtered);
+
+            this.$nextTick(() => {
+                this.$refs['input-search-field-' + this._uid].focus();
+            });
+
+            this.filter_index++;
+
+            if (this.filter_list.length) {
+                this.visible = {
+                    options: true,
+                    operator: false,
+                    values: false,
+                };
+            } else {
+                this.visible = {
+                    options: false,
+                    operator: false,
+                    values: false,
+                };
+            }
+
+            this.show_date = false;
+
+            this.filter_last_step = 'options';
+            this.search = '';
+
+            this.multiple_values = [];
+        },
+
+        onValueDateRange() {
+            this.show_date = true;
+
+            this.visible = {
+                options: false,
+                operator: false,
+                values: false,
+            };
+
+            this.show_date_range = true;
+
+            this.$nextTick(() => {
+                this.$refs['input-search-date-field-' + this._uid].fp.set('mode', 'range');
+                this.$refs['input-search-date-field-' + this._uid].fp.open();
+            });
+        },
+
         onFilterDelete(index) {
+            this.show_icon = true;
+
             this.filter_list.push(this.selected_options[index]);
 
             if (this.filter_last_step == 'options') {
@@ -478,6 +832,14 @@ export default {
 
             this.show_date = false;
 
+            if (this.filter_index == 0) {
+                this.onChangeSearchAndFilterText(this.defaultPlaceholder, true);
+                this.show_close_icon = false;
+            } else {
+                this.show_icon = false;
+                this.show_close_icon = true;
+            }
+
             this.filter_last_step = 'options';
         },
 
@@ -490,11 +852,16 @@ export default {
             this.onInputConfirm();
         },
 
-        convertOption (options) {
+        onChangeSearchAndFilterText(arg, param) {
+            this.dynamicPlaceholder = arg;
+            this.show_icon = param;
+        },
+
+        convertOption(options) {
             let values = [];
 
             // Option set sort_option data
-            if (!Array.isArray(options)) {
+            if (! Array.isArray(options)) {
                 for (const [key, value] of Object.entries(options)) {
                     values.push({
                         key: (key).toString(),
@@ -513,13 +880,28 @@ export default {
             return values;
         },
 
-        closeIfClickedOutside(event) {
-            if (!document.getElementById('search-field-' + this._uid).contains(event.target) && event.target.className != 'btn btn-link') {
-                this.visible.options = false;
-                this.visible.operator = false;
-                this.visible.values = false;
+        convertToDarteFormat(format) {
+            return format.replace('d', 'DD')
+                .replace('M', 'MMM')
+                .replace('m', 'MM')
+                .replace('F', 'MMMM')
+                .replace('y', 'yyyy')
+                .replace('Y', 'yyyy');
+        },
 
-                document.removeEventListener('click', this.closeIfClickedOutside);
+        closeIfClickedOutside(event) {
+            if (document.getElementById('search-field-' + this._uid)) {
+                if (! document.getElementById('search-field-' + this._uid).contains(event.target)
+                    && event.target.getAttribute('data-btn') != 'btn btn-link'
+                ) {
+                    this.visible.options = false;
+                    this.visible.operator = false;
+                    this.visible.values = false;
+                    this.show_button = false;
+                    this.show_date_range = false;
+
+                    document.removeEventListener('click', this.closeIfClickedOutside);
+                }
             }
         },
     },
@@ -534,20 +916,26 @@ export default {
         }
 
         if (this.value) {
-            let search_string = this.value.replace('not ', '').replace(' not ', ' ');
+            this.value = this.value.replace(/\s+[a-zA-Z\w]+[<=]+/g, '-to-');
+            this.value = this.value.replace('>=', ':');
 
-            console.log(search_string);
+            let search_string = this.value.replace('not ', '').replace(' not ', ' ');
 
             search_string = search_string.split(' ');
 
+            let search_values = [];
+
             search_string.forEach(function (string) {
                 if (string.search(':') === -1) {
-                    this.search = string.replace(new RegExp("[" + '"' + "]*$"), '');
+                    let sv = string.replace(/[\"]+/g, '');
+
+                    search_values.push(sv);
                 } else {
                     let filter = string.split(':');
                     let option = '';
                     let operator = '=';
                     let value = '';
+                    let value_assigned = false;
 
                     this.filter_list.forEach(function (_filter, i) {
                         let filter_values = this.convertOption(_filter.values);
@@ -562,7 +950,7 @@ export default {
                                 }
                             }, this);
 
-                            if (!value && (cookie != undefined && cookie[_filter.key])) {
+                            if (! value && (cookie != undefined && cookie[_filter.key])) {
                                 value = cookie[_filter.key].value;
                             }
 
@@ -582,14 +970,41 @@ export default {
 
                             filter_values.forEach(function (value, j) {
                                 if (value.key == filter[1]) {
-                                    this.selected_values.push(value);
+                                    if (_filter.multiple) {
+                                        let multiple_selected_values = [];
+
+                                        if (Array.isArray(value)) {
+                                            value.forEach(function (multiple_value, m) {
+                                                multiple_selected_values.push(multiple_value);
+                                            });
+                                        } else {
+                                            multiple_selected_values.push(value);
+                                        }
+
+                                        this.selected_values.push(multiple_selected_values);
+                                    } else {
+                                        this.selected_values.push(value);
+                                    }
 
                                     this.option_values[_filter.key].splice(j, 1);
+
+                                    value_assigned = true;
                                 }
                             }, this);
 
-                            if (cookie != undefined && cookie[_filter.key]) {
-                                this.selected_values.push(cookie[_filter.key]);
+                            if (! value_assigned && (cookie != undefined && cookie[_filter.key])) {
+                                if (_filter.multiple) {
+                                    let multiple_selected_values = [];
+                                    let cookie_key = cookie[_filter.key];
+
+                                    cookie_key.value.forEach(function (multiple_value, m) {
+                                        multiple_selected_values.push(multiple_value);
+                                    });
+
+                                    this.selected_values.push(multiple_selected_values);
+                                } else {
+                                    this.selected_values.push(cookie[_filter.key]);
+                                }
                             }
                         }
                     }, this);
@@ -603,6 +1018,139 @@ export default {
                     this.filter_index++;
                 }
             }, this);
+
+            this.search = (search_values.length > 1) ? search_values.join(' ') : search_values.join('');
+        } else if (this.defaultFiltered) {
+            this.defaultFiltered.forEach(function (filter) {
+                let option = '';
+                let operator = '=';
+                let value = '';
+
+                this.filter_list.forEach(function (_filter, i) {
+                    let filter_values = this.convertOption(_filter.values);
+
+                    if (_filter.key == filter.option) {
+                        option = _filter.value;
+                        operator = filter.operator;
+
+                        filter_values.forEach(function (_value) {
+                            if (_value.key == filter.value) {
+                                value = _value.value;
+                            }
+                        }, this);
+
+                        this.selected_options.push(this.filter_list[i]);
+
+                        this.selected_operator.push({
+                            key: operator,
+                        });
+
+                        this.filter_list.splice(i, 1);
+
+                        let value_assigned = false;
+                        this.option_values[_filter.key] = filter_values;
+
+                        filter_values.forEach(function (value, j) {
+                            if (value.key == filter.value) {
+                                this.selected_values.push(value);
+
+                                this.option_values[_filter.key].splice(j, 1);
+
+                                value_assigned = true;
+                            }
+                        }, this);
+
+                        if (! value_assigned) {
+                            let dates = filter.value.split('-to-');
+
+                            let date_format = this.convertToDarteFormat(this.dateConfig.altFormat);
+
+                            key = filter.value;
+
+                            value =  moment(dates[0]).format(date_format) + ' to ' + moment(dates[1]).format(date_format);
+
+                            this.selected_values.push({
+                                key: key,
+                                value: value,
+                            });
+                        }
+                    }
+                }, this);
+
+                this.filtered.push({
+                    option: option,
+                    operator: operator,
+                    value: value
+                });
+
+                this.filter_index++;
+            }, this);
+        }
+
+        if (getQueryVariable('start_date') && getQueryVariable('end_date')) {
+            this.filter_list.forEach(function (_filter, i) {
+                if (_filter.key != 'date_range') {
+                    return;
+                }
+
+                this.selected_options.push(this.filter_list[i]);
+
+                this.selected_operator.push({
+                    key: '=',
+                });
+
+                this.filter_list.splice(i, 1);
+
+                let value_assigned = false;
+                let filter_values = this.convertOption(_filter.values);
+
+                this.option_values[_filter.key] = filter_values;
+
+                let date_range_value = getQueryVariable('start_date') + '-to-' + getQueryVariable('end_date');
+
+                filter_values.forEach(function (value, j) {
+                    if (value.key == date_range_value) {
+                        this.selected_values.push(value);
+
+                        this.option_values[_filter.key].splice(j, 1);
+
+                        value_assigned = true;
+                    }
+                }, this);
+
+                let date_range_value_format = '';
+
+                if (! value_assigned) {
+                    let dates = date_range_value.split('-to-');
+
+                    let date_format = this.convertToDarteFormat(this.dateConfig.altFormat);
+
+                    date_range_value_format = moment(dates[0]).format(date_format) + ' to ' + moment(dates[1]).format(date_format);
+
+                    this.selected_values.push({
+                        key: date_range_value,
+                        value: date_range_value_format,
+                    });
+                }
+
+                this.filtered.push({
+                    option: _filter.value,
+                    operator: '=',
+                    value: (_filter.values[date_range_value]) ? _filter.values[date_range_value] : date_range_value_format,
+                });
+
+                this.filter_index++;
+            }, this);
+        }
+    },
+
+    mounted() {
+        if (this.filter_index > 0) {
+            this.onChangeSearchAndFilterText(this.enterPlaceholder, false);
+        }
+
+        if (this.selected_values.length > 0) {
+            this.show_close_icon = true;
         }
     },
 
@@ -630,6 +1178,22 @@ export default {
         },
 
         filteredValues() {
+            if (this.selected_options.length) {
+                let only_filter = false;
+
+                this.selected_options.forEach(function (value, index) {
+                    if (value.sort_options != undefined && ! value.sort_options) {
+                        only_filter = true;
+                    }
+                });
+
+                if (only_filter) {
+                    return this.values.filter(value => {
+                        return value.value.toLowerCase().includes(this.search.toLowerCase());
+                    });
+                }
+            }
+
             this.values.sort(function (a, b) {
                 var nameA = a.value.toUpperCase(); // ignore upper and lowercase
                 var nameB = b.value.toUpperCase(); // ignore upper and lowercase
@@ -647,8 +1211,8 @@ export default {
             });
 
             return this.values.filter(value => {
-                return value.value.toLowerCase().includes(this.search.toLowerCase())
-            })
+                return value.value.toLowerCase().includes(this.search.toLowerCase());
+            });
         }
     },
 
@@ -666,109 +1230,100 @@ export default {
 </script>
 
 <style>
-.searh-field {
-    border: 1px solid #dee2e6;
-    border-radius: 0.25rem;
-}
+    .searh-field .tags-group:hover > span {
+        background:#cbd4de;
+        background-color: #cbd4de;
+        border-color: #cbd4de;
+    }
 
-.searh-field .tags-group {
-  display: contents;
-}
+    .searh-field .el-tag.el-tag--primary .el-tag__close.el-icon-close {
+        color: #8898aa;
+        margin-top: -3px;
+    }
 
-.searh-field .el-tag.el-tag--primary {
-  background: #f6f9fc;
-  background-color: #f6f9fc;
-  border-color: #f6f9fc;
-  color: #8898aa;
-  margin-top: 7px;
-}
+    .searh-field .el-tag.el-tag--primary .el-tag__close.el-icon-close:hover {
+        background-color: transparent;
+    }
 
-.searh-field .tags-group:hover > span {
-  background:#cbd4de;
-  background-color: #cbd4de;
-  border-color: #cbd4de;
-}
+    html[dir='ltr'] .searh-field .el-tag-option {
+        border-radius: 0.50rem 0 0 0.50rem;
+        //margin-left: 10px;
+    }
 
-.searh-field .el-tag.el-tag--primary .el-tag__close.el-icon-close {
-  color: #8898aa;
-}
+    html[dir='rtl'] .searh-field .el-tag-option {
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
 
-.searh-field .el-tag-option {
-  border-radius: 0.25rem 0 0 0.25rem;
-  margin-left: 10px;
-}
+    .searh-field .el-tag-operator {
+        border-radius: 0;
+        margin-left: -1px;
+        margin-right: -1px;
+    }
 
-.searh-field .el-tag-operator {
-  border-radius: 0;
-  margin-left: -1px;
-  margin-right: -1px;
-}
+    html[dir='ltr'] .searh-field .el-tag-value {
+        border-radius: 0 0.50rem 0.50rem 0;
+        margin-right: 10px;
+    }
 
-.searh-field .el-tag-value {
-  border-radius: 0 0.25rem 0.25rem 0;
-  margin-right: 10px;
-}
+    html[dir='rtl'] .searh-field .el-tag-value {
+        border-radius: 0.5rem 0 0 0.5rem;
+        margin-left: 10px;
+    }
 
-.searh-field .el-select.input-new-tag {
-    width: 100%;
-}
+    html[dir='rtl'] .searh-field .el-tag-operator {
+        border-radius: 0;
+    }
 
-.searh-field .input-full {
-  width: 100%;
-}
+    .searh-field .el-select.input-new-tag {
+        width: 100%;
+    }
 
-.searh-field .btn.btn-link {
-  width: inherit;
-  text-align: left;
-  display: flex;
-  margin: 0;
-  text-overflow: inherit;
-  text-align: left;
-  text-overflow: ellipsis;
-  padding: unset;
-  color: #212529;
-}
+    .searh-field .btn-helptext {
+        margin-left: auto;
+        color: var(--gray);
+    }
 
-.searh-field .btn.btn-link.clear {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 45px;
-  height: 45px;
-  -webkit-box-pack: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  color: #adb5bd;
-  opacity: 1;
-}
+    .searh-field .btn:not(:disabled):not(.disabled):active:focus,
+    .searh-field .btn:not(:disabled):not(.disabled).active:focus {
+        -webkit-box-shadow: none !important;
+        box-shadow: none !important;
+    }
 
-.searh-field .btn.btn-link.clear:hover {
-  color: #8898aa;
-}
+    .searh-field .form-control.datepicker.flatpickr-input {
+        padding: inherit !important;
+    }
 
-.searh-field .btn-helptext {
-  margin-left: auto;
-  color: var(--gray);
-}
+    .searh-field .dropdown-menu.operator {
+        min-width: 50px !important;
+    }
 
-.searh-field .btn:not(:disabled):not(.disabled):active:focus,
-.searh-field .btn:not(:disabled):not(.disabled).active:focus {
-  -webkit-box-shadow: none !important;
-    box-shadow: none !important;
-}
+    .searh-field .dropdown-menu.operator .btn i:not(:last-child), .btn svg:not(:last-child) {
+        margin-right: inherit !important;
+    }
 
-.searh-field .form-control.datepicker.flatpickr-input {
-  padding: inherit !important;
-}
+    .dropdown-menu {
+        z-index: 1000;
+        display: none;
+        min-width: 10rem;
+    }
 
-.searh-field .dropdown-menu.operator {
-    min-width: 50px !important;
-}
+    .dropdown-menu li {
+        margin-bottom: 5px;
+    }
 
-.searh-field .dropdown-menu.operator .btn i:not(:last-child), .btn svg:not(:last-child) {
-    margin-right: inherit !important;
-}
+    .dropdown-menu.operator li {
+        margin-bottom: 5px;
+    }
+
+    .dropdown-menu li:last-child {
+        margin-bottom: 0;
+    }
+
+    .dropdown-menu > li > button {
+        width: 100%;
+    }
+
+    .dropdown-menu.show {
+        display: block;
+    }
 </style>

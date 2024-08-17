@@ -5,33 +5,22 @@ namespace App\Jobs\Document;
 use App\Abstracts\Job;
 use App\Events\Document\DocumentCreated;
 use App\Events\Document\DocumentCreating;
+use App\Interfaces\Job\HasOwner;
+use App\Interfaces\Job\HasSource;
+use App\Interfaces\Job\ShouldCreate;
 use App\Jobs\Document\CreateDocumentItemsAndTotals;
 use App\Models\Document\Document;
+use App\Traits\Plans;
 use Illuminate\Support\Str;
 
-class CreateDocument extends Job
+class CreateDocument extends Job implements HasOwner, HasSource, ShouldCreate
 {
-    protected $document;
+    use Plans;
 
-    protected $request;
-
-    /**
-     * Create a new job instance.
-     *
-     * @param  $request
-     */
-    public function __construct($request)
+    public function handle(): Document
     {
-        $this->request = $this->getRequestInstance($request);
-    }
+        $this->authorize();
 
-    /**
-     * Execute the job.
-     *
-     * @return Document
-     */
-    public function handle()
-    {
         if (empty($this->request['amount'])) {
             $this->request['amount'] = 0;
         }
@@ -39,26 +28,37 @@ class CreateDocument extends Job
         event(new DocumentCreating($this->request));
 
         \DB::transaction(function () {
-            $this->document = Document::create($this->request->all());
+            $this->model = Document::create($this->request->all());
 
             // Upload attachment
             if ($this->request->file('attachment')) {
                 foreach ($this->request->file('attachment') as $attachment) {
-                    $media = $this->getMedia($attachment, Str::plural($this->document->type));
+                    $media = $this->getMedia($attachment, Str::plural($this->model->type));
 
-                    $this->document->attachMedia($media, 'attachment');
+                    $this->model->attachMedia($media, 'attachment');
                 }
             }
 
-            $this->dispatch(new CreateDocumentItemsAndTotals($this->document, $this->request));
+            $this->dispatch(new CreateDocumentItemsAndTotals($this->model, $this->request));
 
-            $this->document->update($this->request->all());
+            $this->model->update($this->request->all());
 
-            $this->document->createRecurring();
+            $this->model->createRecurring($this->request->all());
         });
 
-        event(new DocumentCreated($this->document, $this->request));
+        event(new DocumentCreated($this->model, $this->request));
 
-        return $this->document;
+        return $this->model;
+    }
+
+    /**
+     * Determine if this action is applicable.
+     */
+    public function authorize(): void
+    {
+        $limit = $this->getAnyActionLimitOfPlan();
+        if (! $limit->action_status && ! empty($this->request['type']) && ($this->request['type'] == 'invoice')) {
+            throw new \Exception($limit->message);
+        }
     }
 }

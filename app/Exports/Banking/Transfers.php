@@ -3,6 +3,7 @@
 namespace App\Exports\Banking;
 
 use App\Abstracts\Export;
+use App\Http\Requests\Banking\Transfer as Request;
 use App\Models\Banking\Transfer as Model;
 use App\Utilities\Date;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
@@ -10,20 +11,16 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class Transfers extends Export implements WithColumnFormatting
 {
+    public $request_class = Request::class;
+
     public function collection()
     {
-        $model = Model::with(
+        return Model::with(
             'expense_transaction',
             'expense_transaction.account',
             'income_transaction',
             'income_transaction.account'
-        )->usingSearchString(request('search'));
-
-        if (!empty($this->ids)) {
-            $model->whereIn('id', (array) $this->ids);
-        }
-
-        return $model->cursor();
+        )->collectForExport($this->ids);
     }
 
     public function map($model): array

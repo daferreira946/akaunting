@@ -4,10 +4,12 @@ return [
 
     'invoice_number'        => 'Factuurnummer',
     'invoice_date'          => 'Factuur datum',
+    'invoice_amount'        => 'Factuur bedrag',
     'total_price'           => 'Totaalprijs',
     'due_date'              => 'Vervaldatum',
     'order_number'          => 'Bestelnummer',
     'bill_to'               => 'Factuur voor',
+    'cancel_date'           => 'Annuleer Datum',
 
     'quantity'              => 'Aantal',
     'price'                 => 'Prijs',
@@ -18,6 +20,7 @@ return [
     'total'                 => 'Totaal',
 
     'item_name'             => 'Artikelnaam|Artikelnamen',
+    'recurring_invoices'    => 'Terugkerende Factuur|Terugkerende Facturen',
 
     'show_discount'         => ':discount% Korting',
     'add_discount'          => 'Korting toevoegen',
@@ -39,9 +42,17 @@ return [
     'send_invoice'          => 'Factuur sturen',
     'get_paid'              => 'Betaling afstemmen',
     'accept_payments'       => 'Online betalingen accepteren',
+    'payments_received'     => 'Ontvangen betalingen',
+    'over_payment'          => 'Het bedrag dat je hebt ingevoerd, komt voorbij het totaal:',
+
+    'form_description' => [
+        'billing'           => 'Factuurgegevens verschijnen op uw factuur. Factuurdatum wordt gebruikt in het dashboard en in rapporten. Selecteer de datum waarop u verwacht betaald te worden als vervaldatum.',
+    ],
 
     'messages' => [
         'email_required'    => 'Er is geen e-mailadres bekend van deze klant!',
+        'totals_required'   => 'Factuurtotalen zijn vereist Bewerk het :type en sla het opnieuw op.',
+
         'draft'             => 'Dit is een <b>CONCEPT</b> factuur en zal terugkomen in de statistieken wanneer het verzonden is.',
 
         'status' => [
@@ -55,6 +66,18 @@ return [
                 'await'     => 'In afwachting van betaling',
             ],
         ],
+
+        'name_or_description_required' => 'Je factuur moet ten minste één van de volgende punten bevatten <b>:name</b> of <b>:description</b>.',
+    ],
+
+    'share' => [
+        'show_link'         => 'Uw klant kan de factuur bekijken via deze link',
+        'copy_link'         => 'Kopieer de link en deel deze met uw klant.',
+        'success_message'   => 'Gekopieerde deellink naar klembord!',
+    ],
+
+    'sticky' => [
+        'description'       => 'Je bekijkt hoe je klant de webversie van je factuur zal zien.',
     ],
 
 ];

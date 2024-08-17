@@ -13,6 +13,9 @@ return [
         'issued_at'         => 'İşlem Tarihi',
         'symbol_first'      => 'Simge Konumu',
         'reconciled'        => 'Mutabakat Yapıldı',
+        'expense_account'   => 'Gönderen Hesap',
+        'income_account'    => 'Alan Hesap',
+        'recurring'         => 'Tekrarlanan',
     ],
 
 ];

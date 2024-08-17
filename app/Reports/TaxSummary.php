@@ -8,25 +8,29 @@ use App\Models\Document\Document;
 use App\Models\Setting\Tax;
 use App\Traits\Currencies;
 use App\Utilities\Recurring;
-use Date;
+use App\Utilities\Date;
 
 class TaxSummary extends Report
 {
     use Currencies;
 
-    public $default_name = 'reports.summary.tax';
+    public $default_name = 'reports.tax_summary';
 
     public $category = 'general.accounting';
 
-    public $icon = 'fa fa-percent';
+    public $icon = 'percent';
+
+    public $type = 'detail';
+
+    public $chart = false;
 
     public function setViews()
     {
         parent::setViews();
-        $this->views['content.header'] = 'reports.tax_summary.content.header';
-        $this->views['content.footer'] = 'reports.tax_summary.content.footer';
-        $this->views['table.header'] = 'reports.tax_summary.table.header';
-        $this->views['table.footer'] = 'reports.tax_summary.table.footer';
+        $this->views['detail.content.header'] = 'reports.tax_summary.content.header';
+        $this->views['detail.content.footer'] = 'reports.tax_summary.content.footer';
+        $this->views['detail.table.header'] = 'reports.tax_summary.table.header';
+        $this->views['detail.table.footer'] = 'reports.tax_summary.table.footer';
     }
 
     public function setTables()
@@ -40,7 +44,7 @@ class TaxSummary extends Report
 
     public function setData()
     {
-        switch ($this->getSetting('basis')) {
+        switch ($this->getBasis()) {
             case 'cash':
                 // Invoice Payments
                 $invoices = $this->applyFilters(Transaction::with('recurring', 'invoice', 'invoice.totals')->income()->isDocument()->isNotTransfer(), ['date_field' => 'paid_at'])->get();
@@ -53,12 +57,12 @@ class TaxSummary extends Report
                 break;
             default:
                 // Invoices
-                $invoices = $this->applyFilters(Document::invoice()->with('recurring', 'totals', 'transactions')->accrued(), ['date_field' => 'issued_at'])->get();
+                $invoices = $this->applyFilters(Document::invoice()->with('recurring', 'totals', 'transactions', 'items')->accrued(), ['date_field' => 'issued_at'])->get();
                 Recurring::reflect($invoices, 'issued_at');
                 $this->setTotals($invoices, 'issued_at');
 
                 // Bills
-                $bills = $this->applyFilters(Document::bill()->with('recurring', 'totals', 'transactions')->accrued(), ['date_field' => 'issued_at'])->get();
+                $bills = $this->applyFilters(Document::bill()->with('recurring', 'totals', 'transactions', 'items')->accrued(), ['date_field' => 'issued_at'])->get();
                 Recurring::reflect($bills, 'issued_at');
                 $this->setTotals($bills, 'issued_at');
 

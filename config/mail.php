@@ -28,8 +28,8 @@ return [
     | sending an e-mail. You will specify which one you are using for your
     | mailers below. You are free to add additional mailers as required.
     |
-    | Supported: "smtp", "sendmail", "mailgun", "ses",
-    |            "postmark", "log", "array", "mail"
+    | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
+    |            "postmark", "log", "array", "mail", "failover"
     |
     */
 
@@ -42,7 +42,7 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => env('MAIL_TIMEOUT'),
-            'auth_mode' => env('MAIL_AUTH_MODE'),
+            'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 
         'ses' => [
@@ -51,10 +51,17 @@ return [
 
         'mailgun' => [
             'transport' => 'mailgun',
+            // 'client' => [
+            //     'timeout' => 5,
+            // ],
         ],
 
         'postmark' => [
             'transport' => 'postmark',
+            // 'client' => [
+            //     'timeout' => 5,
+            // ],
+            'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
         ],
 
         'sendgrid' => [
@@ -63,7 +70,7 @@ return [
 
         'sendmail' => [
             'transport' => 'sendmail',
-            'path' => '/usr/sbin/sendmail -bs',
+            'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -t -i'),
         ],
 
         'log' => [
@@ -73,6 +80,14 @@ return [
 
         'array' => [
             'transport' => 'array',
+        ],
+
+        'failover' => [
+            'transport' => 'failover',
+            'mailers' => [
+                'smtp',
+                'log',
+            ],
         ],
 
         'mail' => [

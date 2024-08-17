@@ -9,7 +9,7 @@ return [
         'requirements'      => 'Venligst, opfyld følgende krav!',
         'language'          => 'Trin 1/3: Valg af sprog',
         'database'          => 'Trin 2/3: Database opsætning',
-        'settings'          => 'Trin 3/3: Virksomhed og administrator detaljer',
+        'settings'          => 'Trin 3/3: Virksomheds- og administratoroplysninger',
     ],
 
     'language' => [
@@ -22,6 +22,7 @@ return [
         'extension'         => ':extension udvidelse skal være indlæst!',
         'directory'         => ':directory folderen skal være skrivbar!',
         'executable'        => 'PHP CLI eksekverbar file virker ikke! Venligst  anmod din host om at sætte PHP_BINARY eller PHP_PATH miljøvariablen korrekt.',
+        'npm'               => '<b>Mangler JavaScript-filer !</b> <br><br><span>Du bør køre <em class="underline">npm install</em> og <em class="underline">npm run dev</em> kommandoer.</span>', 
     ],
 
     'database' => [
@@ -33,9 +34,9 @@ return [
 
     'settings' => [
         'company_name'      => 'Firmanavn',
-        'company_email'     => 'Officiel e-mail',
+        'company_email'     => 'E-mail',
         'admin_email'       => 'Administrator e-mail',
-        'admin_password'    => 'Administrator Password',
+        'admin_password'    => 'Administratorpassword',
     ],
 
     'error' => [
@@ -43,4 +44,8 @@ return [
         'connection'        => 'Error: Kunne ikke forbinde til databasen! Kontroller, at oplysningerne er korrekte.',
     ],
 
+    'update' => [
+        'core'              => 'Ny Akaunting version er tilgængelig! Opdater venligst din installation.',
+        'module'            => 'Ny :module version er tilgængelig! Opdater venligst din installation.',
+    ],
 ];

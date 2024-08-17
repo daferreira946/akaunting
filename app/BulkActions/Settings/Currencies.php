@@ -11,23 +11,74 @@ class Currencies extends BulkAction
 {
     public $model = Currency::class;
 
+    public $text = 'general.currencies';
+
+    public $path = [
+        'group' => 'settings',
+        'type' => 'currencies',
+    ];
+
     public $actions = [
-        'enable' => [
-            'name' => 'general.enable',
-            'message' => 'bulk_actions.message.enable',
-            'permission' => 'update-settings-currencies',
+        'edit' => [
+            'icon'          => 'edit',
+            'name'          => 'general.edit',
+            'message'       => '',
+            'permission'    => 'update-settings-currencies',
+            'type'          => 'modal',
+            'handle'        => 'update',
         ],
-        'disable' => [
-            'name' => 'general.disable',
-            'message' => 'bulk_actions.message.disable',
-            'permission' => 'update-settings-currencies',
+        'enable'    => [
+            'icon'          => 'check_circle',
+            'name'          => 'general.enable',
+            'message'       => 'bulk_actions.message.enable',
+            'permission'    => 'update-settings-currencies',
         ],
-        'delete' => [
-            'name' => 'general.delete',
-            'message' => 'bulk_actions.message.delete',
-            'permission' => 'delete-settings-currencies',
+        'disable'   => [
+            'icon'          => 'hide_source',
+            'name'          => 'general.disable',
+            'message'       => 'bulk_actions.message.disable',
+            'permission'    => 'update-settings-currencies',
+        ],
+        'delete'    => [
+            'icon'          => 'delete',
+            'name'          => 'general.delete',
+            'message'       => 'bulk_actions.message.delete',
+            'permission'    => 'delete-settings-currencies',
         ],
     ];
+
+    public function edit($request)
+    {
+        $selected = $this->getSelectedInput($request);
+
+        $precisions = (object) [
+            '0' => '0',
+            '1' => '1',
+            '2' => '2',
+            '3' => '3',
+            '4' => '4',
+        ];
+
+        return $this->response('bulk-actions.settings.currencies.edit', compact('selected', 'precisions'));
+    }
+
+    public function update($request)
+    {
+        $currencies = $this->getSelectedRecords($request);
+
+        foreach ($currencies as $currency) {
+            try {
+                $request->merge([
+                    'code' => $currency->code,
+                    'enabled' => $currency->enabled,
+                ]); // for update job authorize..
+
+                $this->dispatch(new UpdateCurrency($currency, $this->getUpdateRequest($request)));
+            } catch (\Exception $e) {
+                flash($e->getMessage())->error()->important();
+            }
+        }
+    }
 
     public function disable($request)
     {
@@ -37,7 +88,7 @@ class Currencies extends BulkAction
             try {
                 $this->dispatch(new UpdateCurrency($currency, $request->merge(['enabled' => 0])));
             } catch (\Exception $e) {
-                flash($e->getMessage())->error();
+                flash($e->getMessage())->error()->important();
             }
         }
     }
@@ -50,7 +101,7 @@ class Currencies extends BulkAction
             try {
                 $this->dispatch(new DeleteCurrency($currency));
             } catch (\Exception $e) {
-                flash($e->getMessage())->error();
+                flash($e->getMessage())->error()->important();
             }
         }
     }

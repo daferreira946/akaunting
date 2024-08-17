@@ -51,6 +51,9 @@ return [
     'templates'             => 'Mal|Maler',
     'sales'                 => 'Salg|Salg',
     'purchases'             => 'Kjøp|Kjøp',
+    'notifications'         => 'Varsel|Varsler',
+    'countries'             => 'Land|Land',
+    'cities'                => 'By|Byer ',
 
     'welcome'               => 'Velkommen',
     'banking'               => 'Bank',
@@ -72,6 +75,7 @@ return [
     'add_new'               => 'Legg til ny',
     'add_income'            => 'Legg til inntekt',
     'add_expense'           => 'Legg til utgift',
+    'add_transfer'          => 'Legg til overføring',
     'show'                  => 'Vis',
     'edit'                  => 'Endre',
     'delete'                => 'Slett',
@@ -107,7 +111,7 @@ return [
     'download_pdf'          => 'Last ned PDF',
     'customize'             => 'Tilpass',
     'search'                => 'Søk',
-    'search_text'           => 'Søk etter tekst',
+    'search_text'           => 'Søk etter denne teksten',
     'search_placeholder'    => 'Skriv for å søke ...',
     'filter'                => 'Filter',
     'help'                  => 'Hjelp',
@@ -156,16 +160,22 @@ return [
     'clear_cache'           => 'Tøm hurtiglager',
     'go_to_dashboard'       => 'Gå til kontrollpanel',
     'is'                    => 'er',
-    'isnot'                 => 'er ikke', 
+    'isnot'                 => 'er ikke',
     'recurring_and_more'    => 'Gjentakende og flere..',
-    'due_on'                => 'Forfall',
-    'amount_due'            => 'Skyldig beløp',
+    'due_on'                => 'Forfaller den',
+    'amount_due'            => 'Forfalt beløp',
+    'financial_year'        => 'Regnskapsår',
+    'created'               => 'Opprettet',
+    'state'                 => 'Provins / Delstat',
+    'zip_code'              => 'Postnr / Zip Code',
 
     'card' => [
+        'cards'                 => 'Kort|Kort',
         'name'                  => 'Navn på kort',
         'number'                => 'Kortnummer',
         'expiration_date'       => 'Utløpsdato',
         'cvv'                   => 'CVC',
+        'save'                  => 'Lagre kort',
     ],
 
     'title' => [
@@ -190,16 +200,18 @@ return [
         'add_new'           => 'Legg til ny :field',
         'edit'              => 'Rediger :field',
         'contact_edit'      => 'Rediger :contact_name :field',
+        'drop_file'         => 'Slipp filer her for å laste opp',
         'choose'            => 'Velg :field',
         'choose_different'  => 'Velg et annet :field',
+        'choose_file'       => 'Velg fil',
         'no_file_selected'  => 'Ingen fil valgt ...',
     ],
 
     'placeholder' => [
-        'search'            => 'Skriv for å søke',
+        'search'            => 'Skriv for å søke..',
         'search_and_filter' => 'Søk eller filtrer resultater..',
         'contact_search'    => 'Skriv inn et :type navn',
-        'item_search'       => 'Skriv inn et artikkelnavn',
+        'item_search'       => 'Skriv et artikkelnavn',
     ],
 
     'date_range' => [

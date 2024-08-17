@@ -58,11 +58,11 @@ class Currencies extends Controller
         }
 
         $precisions = (object) [
-            0 => 0,
-            1 => 1,
-            2 => 2,
-            3 => 3,
-            4 => 4,
+            '0' => '0',
+            '1' => '1',
+            '2' => '2',
+            '3' => '3',
+            '4' => '4',
         ];
 
         return view('settings.currencies.create', compact('codes', 'precisions'));
@@ -82,7 +82,7 @@ class Currencies extends Controller
         if ($response['success']) {
             $response['redirect'] = route('currencies.index');
 
-            $message = trans('messages.success.added', ['type' => trans_choice('general.currencies', 1)]);
+            $message = trans('messages.success.created', ['type' => trans_choice('general.currencies', 1)]);
 
             flash($message)->success();
         } else {
@@ -90,7 +90,7 @@ class Currencies extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -122,14 +122,14 @@ class Currencies extends Controller
         }
 
         // Set default currency
-        $currency->default_currency = ($currency->code == setting('default.currency')) ? 1 : 0;
+        $currency->default_currency = ($currency->code == default_currency()) ? 1 : 0;
 
         $precisions = (object) [
-            0 => 0,
-            1 => 1,
-            2 => 2,
-            3 => 3,
-            4 => 4,
+            '0' => '0',
+            '1' => '1',
+            '2' => '2',
+            '3' => '3',
+            '4' => '4',
         ];
 
         return view('settings.currencies.edit', compact('currency', 'codes', 'precisions'));
@@ -158,7 +158,7 @@ class Currencies extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -220,29 +220,10 @@ class Currencies extends Controller
         } else {
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
-    }
-
-    public function currency()
-    {
-        $json = new \stdClass();
-
-        $code = request('code');
-
-        if ($code) {
-            // Get currency object
-            $currency = Currency::where('code', $code)->first();
-
-            // it should be integer for amount mask
-            $currency->precision = (int) $currency->precision;
-
-            $json = (object) $currency;
-        }
-
-        return response()->json($json);
     }
 
     public function config()
@@ -251,15 +232,15 @@ class Currencies extends Controller
 
         $code = request('code');
 
-        $currencies = Currency::all()->pluck('rate', 'code');
-
         if ($code) {
-            $currency = config('money.' . $code);
+            $currencies = Currency::all()->pluck('rate', 'code');
 
-            $currency['rate'] = isset($currencies[$code]) ? $currencies[$code] : null;
-            $currency['symbol_first'] = $currency['symbol_first'] ? 1 : 0;
+            $currency = (object) currency($code)->toArray()[$code];
 
-            $json = (object) $currency;
+            $currency->rate = isset($currencies[$code]) ? $currencies[$code] : null;
+            $currency->symbol_first = ! empty($currency->symbol_first) ? 1 : 0;
+
+            $json = $currency;
         }
 
         return response()->json($json);

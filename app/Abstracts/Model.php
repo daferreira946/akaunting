@@ -2,28 +2,48 @@
 
 namespace App\Abstracts;
 
+use Akaunting\Sortable\Traits\Sortable;
+use App\Events\Common\SearchStringApplied;
+use App\Events\Common\SearchStringApplying;
+use App\Interfaces\Export\WithParentSheet;
+use App\Traits\DateTime;
+use App\Traits\Owners;
+use App\Traits\Sources;
 use App\Traits\Tenants;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as Eloquent;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Kyslik\ColumnSortable\Sortable;
+use Laratrust\Contracts\Ownable;
 use Lorisleiva\LaravelSearchString\Concerns\SearchString;
 
-abstract class Model extends Eloquent
+abstract class Model extends Eloquent implements Ownable
 {
-    use Cachable, SearchString, SoftDeletes, Sortable, Tenants;
+    use Cachable, DateTime, Owners, SearchString, SoftDeletes, Sortable, Sources, Tenants;
 
     protected $tenantable = true;
 
-    protected $dates = ['deleted_at'];
-
     protected $casts = [
-        'enabled' => 'boolean',
+        'amount'        => 'double',
+        'enabled'       => 'boolean',
+        'deleted_at'    => 'datetime',
     ];
 
-    public static function observe($classes)
+    public $allAttributes = [];
+
+    /**
+     * Fill the model with an array of attributes.
+     *
+     * @param  array  $attributes
+     * @return $this
+     *
+     * @throws \Illuminate\Database\Eloquent\MassAssignmentException
+     */
+    public function fill(array $attributes)
     {
-        parent::observe($classes);
+        $this->allAttributes = $attributes;
+
+        return parent::fill($attributes);
     }
 
     /**
@@ -34,6 +54,16 @@ abstract class Model extends Eloquent
     public function company()
     {
         return $this->belongsTo('App\Models\Common\Company');
+    }
+
+    /**
+     * Owner relation.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function owner()
+    {
+        return $this->belongsTo(user_model_class(), 'created_by', 'id')->withDefault(['name' => trans('general.na')]);
     }
 
     /**
@@ -58,7 +88,7 @@ abstract class Model extends Eloquent
      */
     public function scopeCompanyId($query, $company_id)
     {
-        return $query->where($this->table . '.company_id', '=', $company_id);
+        return $query->where($this->qualifyColumn('company_id'), '=', $company_id);
     }
 
     /**
@@ -73,17 +103,70 @@ abstract class Model extends Eloquent
     {
         $request = request();
 
-        $search = $request->get('search');
+        /**
+         * Modules that use the sort parameter in CRUD operations cause an error,
+         * so this sort parameter set back to old value after the query is executed.
+         *
+         * for Custom Fields module
+         */
+        $request_sort = $request->get('sort');
 
-        $query->usingSearchString($search)->sortable($sort);
+        $query->usingSearchString()->sortable($sort);
 
         if ($request->expectsJson() && $request->isNotApi()) {
             return $query->get();
         }
 
-        $limit = $request->get('limit', setting('default.list_limit', '25'));
+        $request->merge(['sort' => $request_sort]);
+        // This line disabled because broken sortable issue.
+        //$request->offsetUnset('direction');
+        $limit = (int) $request->get('limit', setting('default.list_limit', '25'));
 
         return $query->paginate($limit);
+    }
+
+    public function scopeUsingSearchString(Builder $query, string|null $string = null)
+    {
+        event(new SearchStringApplying($query));
+
+        $string = $string ?: request('search');
+
+        $this->getSearchStringManager()->updateBuilder($query, $string);
+
+        event(new SearchStringApplied($query));
+    }
+
+    /**
+     * Scope to export the rows of the current page filtered and sorted.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param $ids
+     * @param $sort
+     * @param $id_field
+     *
+     * @return \Illuminate\Support\LazyCollection
+     */
+    public function scopeCollectForExport($query, $ids = [], $sort = 'name', $id_field = 'id')
+    {
+        $request = request();
+
+        if (!empty($ids)) {
+            $query->whereIn($id_field, (array) $ids);
+        }
+
+        $search = $request->get('search');
+
+        $query->usingSearchString($search)->sortable($sort);
+
+        $page = (int) $request->get('page');
+        $limit = (int) $request->get('limit', setting('default.list_limit', '25'));
+        $offset = $page ? ($page - 1) * $limit : 0;
+
+        if (! $this instanceof WithParentSheet && (empty($ids) || count((array) $ids) > $limit)) {
+            $query->offset($offset)->limit($limit);
+        }
+
+        return $query->cursor();
     }
 
     /**
@@ -94,7 +177,7 @@ abstract class Model extends Eloquent
      */
     public function scopeEnabled($query)
     {
-        return $query->where('enabled', 1);
+        return $query->where($this->qualifyColumn('enabled'), 1);
     }
 
     /**
@@ -105,7 +188,7 @@ abstract class Model extends Eloquent
      */
     public function scopeDisabled($query)
     {
-        return $query->where('enabled', 0);
+        return $query->where($this->qualifyColumn('enabled'), 0);
     }
 
     /**
@@ -117,7 +200,7 @@ abstract class Model extends Eloquent
      */
     public function scopeReconciled($query, $value = 1)
     {
-        return $query->where('reconciled', $value);
+        return $query->where($this->qualifyColumn('reconciled'), $value);
     }
 
     public function scopeAccount($query, $accounts)
@@ -126,7 +209,7 @@ abstract class Model extends Eloquent
             return $query;
         }
 
-        return $query->whereIn('account_id', (array) $accounts);
+        return $query->whereIn($this->qualifyColumn('account_id'), (array) $accounts);
     }
 
     public function scopeContact($query, $contacts)
@@ -135,6 +218,40 @@ abstract class Model extends Eloquent
             return $query;
         }
 
-        return $query->whereIn('contact_id', (array) $contacts);
+        return $query->whereIn($this->qualifyColumn('contact_id'), (array) $contacts);
+    }
+
+    public function scopeSource($query, $source)
+    {
+        return $query->where($this->qualifyColumn('created_from'), $source);
+    }
+
+    public function scopeIsOwner($query)
+    {
+        return $query->where($this->qualifyColumn('created_by'), user_id());
+    }
+
+    public function scopeIsNotOwner($query)
+    {
+        return $query->where($this->qualifyColumn('created_by'), '<>', user_id());
+    }
+
+    public function scopeIsRecurring(Builder $query): Builder
+    {
+        return $query->where($this->qualifyColumn('type'), 'like', '%-recurring');
+    }
+
+    public function scopeIsNotRecurring(Builder $query): Builder
+    {
+        return $query->where($this->qualifyColumn('type'), 'not like', '%-recurring');
+    }
+
+    public function ownerKey($owner)
+    {
+        if ($this->isNotOwnable()) {
+            return 0;
+        }
+
+        return $this->created_by;
     }
 }

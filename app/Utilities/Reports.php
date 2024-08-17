@@ -4,10 +4,13 @@ namespace App\Utilities;
 
 use App\Models\Common\Report;
 use App\Models\Module\Module;
+use App\Traits\Modules;
 use Illuminate\Support\Str;
 
 class Reports
 {
+    use Modules;
+
     public static function getClasses($check_permission = true)
     {
         $classes = [];
@@ -23,7 +26,7 @@ class Reports
         Module::enabled()->each(function ($module) use (&$list) {
             $m = module($module->alias);
 
-            if (!$m || empty($m->get('reports'))) {
+            if (! $m || $m->disabled() || empty($m->get('reports'))) {
                 return;
             }
 
@@ -31,7 +34,7 @@ class Reports
         });
 
         foreach ($list as $class) {
-            if (!class_exists($class) || ($check_permission && !static::canRead($class))) {
+            if (! class_exists($class) || ($check_permission && static::cannotRead($class))) {
                 continue;
             }
 
@@ -47,7 +50,11 @@ class Reports
             $model = Report::where('class', $model)->first();
         }
 
-        if ((!$model instanceof Report) || !class_exists($model->class)) {
+        if ((! $model instanceof Report) || ! class_exists($model->class)) {
+            return false;
+        }
+
+        if (! empty($model) && ($model->alias != 'core') && (new static)->moduleIsDisabled($model->alias)) {
             return false;
         }
 
@@ -61,9 +68,19 @@ class Reports
         return (static::isModuleEnabled($class) && static::canRead($class));
     }
 
+    public static function cannotShow($class)
+    {
+        return ! static::canShow($class);
+    }
+
     public static function canRead($class)
     {
         return user()->can(static::getPermission($class));
+    }
+
+    public static function cannotRead($class)
+    {
+        return ! static::canRead($class);
     }
 
     public static function getPermission($class)
@@ -93,15 +110,20 @@ class Reports
 
     public static function isModuleEnabled($class)
     {
-        if (!$alias = static::getModuleAlias($class)) {
+        if (! $alias = static::getModuleAlias($class)) {
             return true;
         }
 
-        if (Module::alias($alias)->enabled()->first()) {
+        if (module_is_enabled($alias)) {
             return true;
         }
 
         return false;
+    }
+
+    public static function isModuleDisabled($class)
+    {
+        return ! static::isModuleEnabled($class);
     }
 
     public static function isModule($class)
@@ -111,9 +133,14 @@ class Reports
         return (strtolower($arr[0]) == 'modules');
     }
 
+    public static function isNotModule($class)
+    {
+        return ! static::isModule($class);
+    }
+
     public static function getModuleAlias($class)
     {
-        if (!static::isModule($class)) {
+        if (static::isNotModule($class)) {
             return false;
         }
 

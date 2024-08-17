@@ -3,69 +3,68 @@
 namespace App\Jobs\Banking;
 
 use App\Abstracts\Job;
+use App\Events\Banking\TransactionUpdated;
+use App\Events\Banking\TransactionUpdating;
+use App\Interfaces\Job\ShouldUpdate;
+use App\Jobs\Banking\CreateTransactionTaxes;
 use App\Models\Banking\Transaction;
 
-class UpdateTransaction extends Job
+class UpdateTransaction extends Job implements ShouldUpdate
 {
-    protected $transaction;
-
-    protected $request;
-
-    /**
-     * Create a new job instance.
-     *
-     * @param  $transaction
-     * @param  $request
-     */
-    public function __construct($transaction, $request)
-    {
-        $this->transaction = $transaction;
-        $this->request = $this->getRequestInstance($request);
-    }
-
-    /**
-     * Execute the job.
-     *
-     * @return Transaction
-     */
-    public function handle()
+    public function handle(): Transaction
     {
         $this->authorize();
 
+        event(new TransactionUpdating($this->model, $this->request));
+
+        if (! array_key_exists($this->request->get('type'), config('type.transaction'))) {
+            $type = (empty($this->request->get('recurring_frequency')) || ($this->request->get('recurring_frequency') == 'no')) ? Transaction::INCOME_TYPE : Transaction::INCOME_RECURRING_TYPE;
+
+            $this->request->merge(['type' => $type]);
+        }
+
         \DB::transaction(function () {
-            $this->transaction->update($this->request->all());
+            $this->model->update($this->request->all());
 
             // Upload attachment
             if ($this->request->file('attachment')) {
-                $this->deleteMediaModel($this->transaction, 'attachment', $this->request);
+                $this->deleteMediaModel($this->model, 'attachment', $this->request);
 
                 foreach ($this->request->file('attachment') as $attachment) {
                     $media = $this->getMedia($attachment, 'transactions');
 
-                    $this->transaction->attachMedia($media, 'attachment');
+                    $this->model->attachMedia($media, 'attachment');
                 }
-            } elseif (!$this->request->file('attachment') && $this->transaction->attachment) {
-                $this->deleteMediaModel($this->transaction, 'attachment', $this->request);
+            } elseif (! $this->request->file('attachment') && $this->model->attachment) {
+                $this->deleteMediaModel($this->model, 'attachment', $this->request);
             }
 
+            $this->deleteRelationships($this->model, ['taxes'], true);
+
+            $this->dispatch(new CreateTransactionTaxes($this->model, $this->request));
+
             // Recurring
-            $this->transaction->updateRecurring();
+            $this->model->updateRecurring($this->request->all());
         });
 
-        return $this->transaction;
+        event(new TransactionUpdated($this->model, $this->request));
+
+        return $this->model;
     }
 
     /**
      * Determine if this action is applicable.
-     *
-     * @return void
      */
-    public function authorize()
+    public function authorize(): void
     {
-        if ($this->transaction->reconciled) {
+        if ($this->model->reconciled) {
             $message = trans('messages.warning.reconciled_tran');
 
             throw new \Exception($message);
+        }
+
+        if ($this->model->isTransferTransaction()) {
+            throw new \Exception('Unauthorized');
         }
     }
 }

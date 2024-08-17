@@ -13,5 +13,10 @@ class ModuleHistory extends Model
      *
      * @var array
      */
-    protected $fillable = ['company_id', 'module_id', 'version', 'description'];
+    protected $fillable = ['company_id', 'module_id', 'version', 'description', 'created_from', 'created_by'];
+
+    public function module()
+    {
+        return $this->belongsTo('App\Models\Module\Module');
+    }
 }

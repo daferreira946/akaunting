@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Settings;
 
-use App\Abstracts\Http\Controller;
+use App\Abstracts\Http\SettingController;
 use App\Traits\DateTime;
 
-class Localisation extends Controller
+class Localisation extends SettingController
 {
     use DateTime;
 
@@ -41,12 +41,18 @@ class Localisation extends Controller
             'both' => trans('settings.localisation.discount_location.both'),
         ];
 
+        $financial_denote_options = [
+            'begins' => trans('settings.localisation.financial_denote.begins'),
+            'ends' => trans('settings.localisation.financial_denote.ends'),
+        ];
+
         return view('settings.localisation.edit', compact(
             'timezones',
             'date_formats',
             'date_separators',
             'percent_positions',
-            'discount_locations'
+            'discount_locations',
+            'financial_denote_options'
         ));
     }
 }

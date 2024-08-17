@@ -3,45 +3,35 @@
 namespace App\Jobs\Common;
 
 use App\Abstracts\Job;
+use App\Events\Common\ItemCreated;
+use App\Events\Common\ItemCreating;
+use App\Interfaces\Job\HasOwner;
+use App\Interfaces\Job\HasSource;
+use App\Interfaces\Job\ShouldCreate;
 use App\Jobs\Common\CreateItemTaxes;
 use App\Models\Common\Item;
 
-class CreateItem extends Job
+class CreateItem extends Job implements HasOwner, HasSource, ShouldCreate
 {
-    protected $item;
-
-    protected $request;
-
-    /**
-     * Create a new job instance.
-     *
-     * @param  $request
-     */
-    public function __construct($request)
+    public function handle(): Item
     {
-        $this->request = $this->getRequestInstance($request);
-    }
+        event(new ItemCreating($this->request));
 
-    /**
-     * Execute the job.
-     *
-     * @return Item
-     */
-    public function handle()
-    {
         \DB::transaction(function () {
-            $this->item = Item::create($this->request->all());
+            $this->model = Item::create($this->request->all());
 
             // Upload picture
             if ($this->request->file('picture')) {
                 $media = $this->getMedia($this->request->file('picture'), 'items');
 
-                $this->item->attachMedia($media, 'picture');
+                $this->model->attachMedia($media, 'picture');
             }
 
-            $this->dispatch(new CreateItemTaxes($this->item, $this->request));
+            $this->dispatch(new CreateItemTaxes($this->model, $this->request));
         });
 
-        return $this->item;
+        event(new ItemCreated($this->model, $this->request));
+
+        return $this->model;
     }
 }

@@ -7,15 +7,12 @@ return [
     ],
 
     'categories' => [
-        'deposit'           => 'Déposer',
+        'deposit'           => 'Acompte',
         'sales'             => 'Ventes',
     ],
 
     'currencies' => [
         'usd'               => 'Dollar US',
-        'eur'               => 'Euro',
-        'gbp'               => 'Livre sterling',
-        'try'               => 'Livre turque',
     ],
 
     'offline_payments' => [

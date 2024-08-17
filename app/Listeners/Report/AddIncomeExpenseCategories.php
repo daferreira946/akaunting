@@ -26,8 +26,9 @@ class AddIncomeExpenseCategories extends Listener
             return;
         }
 
-        $event->class->filters['categories'] = $this->getIncomeExpenseCategories();
-        $event->class->filters['routes']['categories'] = ['categories.index', 'search=type:income,expense'];
+        $event->class->filters['categories'] = $this->getIncomeExpenseCategories(true);
+        $event->class->filters['routes']['categories'] = ['categories.index', 'search=type:income,expense enabled:1'];
+        $event->class->filters['multiple']['categories'] = true;
     }
 
     /**
@@ -66,45 +67,45 @@ class AddIncomeExpenseCategories extends Listener
             return;
         }
 
-        switch (get_class($event->class)) {
-            case 'App\Reports\ProfitLoss':
-                $categories = Category::type(['income', 'expense'])->orderBy('name')->get();
-                $rows = $categories->pluck('name', 'id')->toArray();
+        $categories = Category::type(['income', 'expense'])->orderBy('name')->get();
+        $rows = $categories->pluck('name', 'id')->toArray();
 
-                $this->setRowNamesAndValuesForProfitLoss($event, $rows, $categories);
+        $this->setRowNamesAndValuesForCategories($event, $rows, $categories);
 
-                break;
-            case 'App\Reports\IncomeExpenseSummary':
-                if ($category_ids = $this->getSearchStringValue('category_id')) {
-                    $categories = explode(',', $category_ids);
+        $nodes = $this->getCategoriesNodes($rows);
 
-                    $rows = collect($event->class->filters['categories'])->filter(function ($value, $key) use ($categories) {
-                        return in_array($key, $categories);
-                    });
-                } else {
-                    $rows = $event->class->filters['categories'];
-                }
-
-                $this->setRowNamesAndValues($event, $rows);
-
-                break;
-        }
+        $this->setTreeNodesForCategories($event, $nodes, $categories);
     }
 
-    public function setRowNamesAndValuesForProfitLoss($event, $rows, $categories)
+    public function setRowNamesAndValuesForCategories($event, $rows, $categories)
     {
         foreach ($event->class->dates as $date) {
-            foreach ($event->class->tables as $type_id => $type_name) {
+            foreach ($event->class->tables as $table_key => $table_name) {
                 foreach ($rows as $id => $name) {
                     $category = $categories->where('id', $id)->first();
 
-                    if ($category->type != $type_id) {
+                    if ($category->type != $table_key) {
                         continue;
                     }
 
-                    $event->class->row_names[$type_name][$id] = $name;
-                    $event->class->row_values[$type_name][$id][$date] = 0;
+                    $event->class->row_names[$table_key][$id] = $name;
+                    $event->class->row_values[$table_key][$id][$date] = 0;
                 }
+            }
+        }
+    }
+
+    public function setTreeNodesForCategories($event, $nodes, $categories)
+    {
+        foreach ($event->class->tables as $table_key => $table_name) {
+            foreach ($nodes as $id => $node) {
+                $category = $categories->where('id', $id)->first();
+
+                if ($category->type != $table_key) {
+                    continue;
+                }
+
+                $event->class->row_tree_nodes[$table_key][$id] = $node;
             }
         }
     }

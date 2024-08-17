@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Events\Install\UpdateCopied;
 use App\Events\Install\UpdateDownloaded;
+use App\Events\Install\UpdateFailed;
 use App\Events\Install\UpdateUnzipped;
 use App\Jobs\Install\CopyFiles;
 use App\Jobs\Install\DownloadFile;
@@ -56,15 +57,26 @@ class Update extends Command
         $this->company = $this->argument('company');
 
         if (false === $this->new = $this->getNewVersion()) {
-            $this->error('Not able to get the latest version of ' . $this->alias . '!');
+            $message = 'Not able to get the latest version of ' . $this->alias . '!';
+
+            $this->error($message);
+
+            event(new UpdateFailed($this->alias, $this->new, $this->old, 'Version', $message));
 
             return self::CMD_ERROR;
         }
 
         $this->old = $this->getOldVersion();
 
-        session(['company_id' => $this->company]);
-        setting()->setExtraColumns(['company_id' => $this->company]);
+        if (version_compare($this->old, $this->new, '>=')) {
+            $message = 'The current version for the ' . $this->alias . ' is the latest version!';
+
+            $this->info($message);
+
+            return self::CMD_SUCCESS;
+        }
+
+        company($this->company)->makeCurrent();
 
         if (!$path = $this->download()) {
             return self::CMD_ERROR;
@@ -87,7 +99,7 @@ class Update extends Command
 
     public function getNewVersion()
     {
-        return ($this->argument('new') == 'latest') ? Versions::latest($this->alias) : $this->argument('new');
+        return ($this->argument('new') == 'latest') ? Versions::latest($this->alias)?->latest : $this->argument('new');
     }
 
     public function getOldVersion()
@@ -112,7 +124,11 @@ class Update extends Command
 
             event(new UpdateDownloaded($this->alias, $this->new, $this->old));
         } catch (\Exception $e) {
-            $this->error($e->getMessage());
+            $message = $e->getMessage();
+
+            $this->error($message);
+
+            event(new UpdateFailed($this->alias, $this->new, $this->old, 'Download', $message));
 
             return false;
         }
@@ -129,7 +145,11 @@ class Update extends Command
 
             event(new UpdateUnzipped($this->alias, $this->new, $this->old));
         } catch (\Exception $e) {
-            $this->error($e->getMessage());
+            $message = $e->getMessage();
+
+            $this->error($message);
+
+            event(new UpdateFailed($this->alias, $this->new, $this->old, 'Unzip', $message));
 
             return false;
         }
@@ -146,7 +166,11 @@ class Update extends Command
 
             event(new UpdateCopied($this->alias, $this->new, $this->old));
         } catch (\Exception $e) {
-            $this->error($e->getMessage());
+            $message = $e->getMessage();
+
+            $this->error($message);
+
+            event(new UpdateFailed($this->alias, $this->new, $this->old, 'Copy Files', $message));
 
             return false;
         }
@@ -161,7 +185,11 @@ class Update extends Command
         try {
             $this->dispatch(new FinishUpdate($this->alias, $this->new, $this->old, $this->company));
         } catch (\Exception $e) {
-            $this->error($e->getMessage());
+            $message = $e->getMessage();
+
+            $this->error($message);
+
+            event(new UpdateFailed($this->alias, $this->new, $this->old, 'Finish', $message));
 
             return false;
         }

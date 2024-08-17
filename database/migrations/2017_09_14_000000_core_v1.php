@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CoreV1 extends Migration
+return new class extends Migration
 {
     /**
      * Run the migrations.
@@ -311,35 +311,11 @@ class CoreV1 extends Migration
         });
 
         // Media
-        Schema::create('media', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('disk', 32);
-            $table->string('directory', 68);
-            $table->string('filename', 121);
-            $table->string('extension', 28);
-            $table->string('mime_type', 128);
-            $table->string('aggregate_type', 32);
-            $table->integer('size')->unsigned();
-            $table->timestamps();
+        Schema::table('media', function (Blueprint $table) {
             $table->softDeletes();
 
             $table->index(['disk', 'directory']);
-            $table->index('aggregate_type');
             $table->unique(['disk', 'directory', 'filename', 'extension', 'deleted_at']);
-        });
-
-        Schema::create('mediables', function (Blueprint $table) {
-            $table->integer('media_id')->unsigned();
-            $table->string('mediable_type', 152);
-            $table->integer('mediable_id')->unsigned();
-            $table->string('tag', 68);
-            $table->integer('order')->unsigned();
-
-            $table->primary(['media_id', 'mediable_type', 'mediable_id', 'tag']);
-            $table->index(['mediable_id', 'mediable_type']);
-            $table->index('tag');
-            $table->index('order');
-            $table->foreign('media_id')->references('id')->on('media')->onDelete('cascade');
         });
 
         // Modules
@@ -436,10 +412,12 @@ class CoreV1 extends Migration
             $table->integer('role_id')->unsigned();
             $table->string('user_type');
 
+            $table->primary(['user_id', 'role_id', 'user_type']);
+        });
+
+        Schema::table('user_roles', function (Blueprint $table) {
             $table->foreign('role_id')->references('id')->on('roles')
                 ->onUpdate('cascade')->onDelete('cascade');
-
-            $table->primary(['user_id', 'role_id', 'user_type']);
         });
 
         // Reconciliations
@@ -488,6 +466,8 @@ class CoreV1 extends Migration
             $table->integer('company_id');
             $table->string('key');
             $table->text('value')->nullable();
+
+            $table->softDeletes();
 
             $table->index('company_id');
             $table->unique(['company_id', 'key']);
@@ -538,9 +518,8 @@ class CoreV1 extends Migration
         Schema::create('user_companies', function (Blueprint $table) {
             $table->integer('user_id')->unsigned();
             $table->integer('company_id')->unsigned();
-            $table->string('user_type');
 
-            $table->primary(['user_id', 'company_id', 'user_type']);
+            $table->primary(['user_id', 'company_id']);
         });
     }
 
@@ -551,44 +530,6 @@ class CoreV1 extends Migration
      */
     public function down()
     {
-        Schema::drop('accounts');
-        Schema::drop('bills');
-        Schema::drop('bill_histories');
-        Schema::drop('bill_items');
-        Schema::drop('bill_item_taxes');
-        Schema::drop('bill_totals');
-        Schema::drop('categories');
-        Schema::drop('companies');
-        Schema::drop('currencies');
-        Schema::drop('invoices');
-        Schema::drop('invoice_histories');
-        Schema::drop('invoice_items');
-        Schema::drop('invoice_item_taxes');
-        Schema::drop('invoice_totals');
-        Schema::drop('items');
-        Schema::drop('jobs');
-        Schema::drop('failed_jobs');
-        Schema::drop('mediables');
-        Schema::drop('media');
-        Schema::drop('modules');
-        Schema::drop('module_histories');
-        Schema::drop('notifications');
-        Schema::drop('password_resets');
-
-        // Cascade table first
-        Schema::drop('user_permissions');
-        Schema::drop('role_permissions');
-        Schema::drop('permissions');
-        Schema::drop('user_roles');
-        Schema::drop('roles');
-
-        Schema::drop('reconciliations');
-        Schema::drop('recurring');
-        Schema::drop('sessions');
-        Schema::drop('settings');
-        Schema::drop('taxes');
-        Schema::drop('transfers');
-        Schema::drop('users');
-        Schema::drop('user_companies');
+        //
     }
-}
+};

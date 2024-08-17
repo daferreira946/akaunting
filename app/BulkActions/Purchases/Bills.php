@@ -5,54 +5,91 @@ namespace App\BulkActions\Purchases;
 use App\Abstracts\BulkAction;
 use App\Events\Document\DocumentCancelled;
 use App\Events\Document\DocumentReceived;
-use App\Exports\Purchases\Bills as Export;
+use App\Exports\Purchases\Bills\Bills as Export;
 use App\Jobs\Banking\CreateBankingDocumentTransaction;
 use App\Jobs\Document\CreateDocumentHistory;
 use App\Jobs\Document\DeleteDocument;
+use App\Jobs\Document\UpdateDocument;
 use App\Models\Document\Document;
 
 class Bills extends BulkAction
 {
     public $model = Document::class;
 
+    public $text = 'general.bills';
+
+    public $path = [
+        'group' => 'purchases',
+        'type' => 'bills',
+    ];
+
     public $actions = [
-        'paid' => [
-            'name' => 'bills.mark_paid',
-            'message' => 'bulk_actions.message.paid',
-            'permission' => 'update-purchases-bills',
+        'edit' => [
+            'icon'          => 'edit',
+            'name'          => 'general.edit',
+            'message'       => '',
+            'permission'    => 'update-purchases-bills',
+            'type'          => 'modal',
+            'handle'        => 'update',
         ],
-        'received' => [
-            'name' => 'bills.mark_received',
-            'message' => 'bulk_actions.message.received',
-            'permission' => 'update-purchases-bills',
+        'received'  => [
+            'icon'          => 'send',
+            'name'          => 'bills.mark_received',
+            'message'       => 'bulk_actions.message.received',
+            'permission'    => 'update-purchases-bills',
         ],
         'cancelled' => [
-            'name' => 'general.cancel',
-            'message' => 'bulk_actions.message.cancelled',
-            'permission' => 'update-purchases-bills',
+            'icon'          => 'cancel',
+            'name'          => 'documents.actions.cancel',
+            'message'       => 'bulk_actions.message.cancelled',
+            'permission'    => 'update-purchases-bills',
         ],
-        'delete' => [
-            'name' => 'general.delete',
-            'message' => 'bulk_actions.message.delete',
-            'permission' => 'delete-purchases-bills',
+        'delete'    => [
+            'icon'          => 'delete',
+            'name'          => 'general.delete',
+            'message'       => 'bulk_actions.message.delete',
+            'permission'    => 'delete-purchases-bills',
         ],
-        'export' => [
-            'name' => 'general.export',
-            'message' => 'bulk_actions.message.export',
-            'type' => 'download',
+        'export'    => [
+            'icon'          => 'file_download',
+            'name'          => 'general.export',
+            'message'       => 'bulk_actions.message.export',
+            'type'          => 'download',
         ],
     ];
 
-    public function paid($request)
+    public function edit($request)
+    {
+        $selected = $this->getSelectedInput($request);
+
+        return $this->response('bulk-actions.purchases.bills.edit', compact('selected'));
+    }
+
+    public function update($request)
     {
         $bills = $this->getSelectedRecords($request);
 
-        foreach ($bills as $bill) {// Already in transactions
-            if ($bill->status == 'paid') {
-                continue;
-            }
+        foreach ($bills as $bill) {
+            try {
+                $discount = $bill->totals->where('code', 'discount')->makeHidden('title')->pluck('amount')->first();
 
-            $this->dispatch(new CreateBankingDocumentTransaction($bill, ['type' => 'expense']));
+                // for extra total rows..
+                $totals = $bill->totals()->whereNotIn('code', ['sub_total', 'total', 'tax', 'discount'])->get()->toArray();
+
+                $request->merge([
+                    'items' => $bill->items->toArray(),
+                    'uploaded_attachment' => $bill->attachment,
+                    'category_id' => ($request->get('category_id')) ?? $bill->category_id,
+                    'discount' => $discount,
+                    'totals' => $totals,
+                ])->except([
+
+                ]);
+
+                $this->dispatch(new UpdateDocument($bill, $this->getUpdateRequest($request)));
+            } catch (\Exception $e) {
+                flash($e->getMessage())->error()->important();
+            }
         }
     }
 
@@ -61,6 +98,10 @@ class Bills extends BulkAction
         $bills = $this->getSelectedRecords($request);
 
         foreach ($bills as $bill) {
+            if ($bill->status == 'received') {
+                continue;
+            }
+
             event(new DocumentReceived($bill));
         }
     }
@@ -70,6 +111,10 @@ class Bills extends BulkAction
         $bills = $this->getSelectedRecords($request);
 
         foreach ($bills as $bill) {
+            if (in_array($bill->status, ['cancelled', 'draft'])) {
+                continue;
+            }
+
             event(new DocumentCancelled($bill));
         }
     }
@@ -89,13 +134,15 @@ class Bills extends BulkAction
 
     public function destroy($request)
     {
-        $bills = $this->getSelectedRecords($request);
+        $bills = $this->getSelectedRecords($request, [
+            'items', 'item_taxes', 'histories', 'transactions', 'recurring', 'totals'
+        ]);
 
         foreach ($bills as $bill) {
             try {
                 $this->dispatch(new DeleteDocument($bill));
             } catch (\Exception $e) {
-                flash($e->getMessage())->error();
+                flash($e->getMessage())->error()->important();
             }
         }
     }
@@ -104,6 +151,6 @@ class Bills extends BulkAction
     {
         $selected = $this->getSelectedInput($request);
 
-        return \Excel::download(new Export($selected), \Str::filename(trans_choice('general.bills', 2)) . '.xlsx');
+        return $this->exportExcel(new Export($selected), trans_choice('general.bills', 2));
     }
 }

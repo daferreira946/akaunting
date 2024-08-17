@@ -8,9 +8,16 @@ return [
         'deleted'           => ':type izbrisano!',
         'duplicated'        => ':type duplicirano!',
         'imported'          => ':type uvezeno!',
+        'import_queued'     => ':type uvoz he zakaan! Dobicete email kad se završi.',
         'exported'          => ': type izvezeno!',
+        'export_queued'     => ':type izvoz je zakazan! Dobićete email kad se završi.',
         'enabled'           => ': type omogućeno!',
         'disabled'          => ':type onemogućeno!',
+        'connected'         => ':type konektovan!',
+        'invited'           => ':type pozvan!',
+        'ended'             => ':type završen!',
+
+        'clear_all'         => 'Super! Očistili ste sve svoje :type.',
     ],
 
     'error' => [
@@ -23,6 +30,8 @@ return [
         'invalid_apikey'    => 'Pogreška: Uneseni API token nije važeći!',
         'import_column'     => 'Greška:: poruka Naziv lista:: list. Broj retka:: linija.',
         'import_sheet'      => 'Pogreška: naziv liste nije važeći. Provjerite oglednu datoteku.',
+        'same_amount'       => 'Greška: Ukupan iznos podjele mora biti potpuno isti kao :ukupni iznos transakcije: :iznos',
+        'over_match'        => 'Greška: :tip nije povezan! Iznos koji ste unijeli ne može premašiti ukupan iznos uplate: :amount',
     ],
 
     'warning' => [

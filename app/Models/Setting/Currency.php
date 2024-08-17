@@ -19,7 +19,20 @@ class Currency extends Model
      *
      * @var array
      */
-    protected $fillable = ['company_id', 'name', 'code', 'rate', 'enabled', 'precision', 'symbol', 'symbol_first', 'decimal_mark', 'thousands_separator'];
+    protected $fillable = [
+        'company_id',
+        'name',
+        'code',
+        'rate',
+        'enabled',
+        'precision',
+        'symbol',
+        'symbol_first',
+        'decimal_mark',
+        'thousands_separator',
+        'created_from',
+        'created_by',
+    ];
 
     /**
      * The attributes that should be cast.
@@ -27,8 +40,9 @@ class Currency extends Model
      * @var array
      */
     protected $casts = [
-        'rate' => 'double',
-        'enabled' => 'boolean',
+        'rate'          => 'double',
+        'enabled'       => 'boolean',
+        'deleted_at'    => 'datetime',
     ];
 
     /**
@@ -50,7 +64,7 @@ class Currency extends Model
 
     public function bills()
     {
-        return $this->documents()->where('type', Document::BILL_TYPE);
+        return $this->documents()->where('documents.type', Document::BILL_TYPE);
     }
 
     public function contacts()
@@ -60,22 +74,22 @@ class Currency extends Model
 
     public function customers()
     {
-        return $this->contacts()->whereIn('type', (array) $this->getCustomerTypes());
+        return $this->contacts()->whereIn('contacts.type', (array) $this->getCustomerTypes());
     }
 
     public function expense_transactions()
     {
-        return $this->transactions()->whereIn('type', (array) $this->getExpenseTypes());
+        return $this->transactions()->whereIn('transactions.type', (array) $this->getExpenseTypes());
     }
 
     public function income_transactions()
     {
-        return $this->transactions()->whereIn('type', (array) $this->getIncomeTypes());
+        return $this->transactions()->whereIn('transactions.type', (array) $this->getIncomeTypes());
     }
 
     public function invoices()
     {
-        return $this->documents()->where('type', Document::INVOICE_TYPE);
+        return $this->documents()->where('documents.type', Document::INVOICE_TYPE);
     }
 
     public function transactions()
@@ -85,7 +99,19 @@ class Currency extends Model
 
     public function vendors()
     {
-        return $this->contacts()->whereIn('type', (array) $this->getVendorTypes());
+        return $this->contacts()->whereIn('contacts.type', (array) $this->getVendorTypes());
+    }
+
+    /**
+     * Scope currency by code.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param mixed $code
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeCode($query, $code)
+    {
+        return $query->where($this->qualifyColumn('code'), $code);
     }
 
     /**
@@ -96,7 +122,7 @@ class Currency extends Model
     public function getPrecisionAttribute($value)
     {
         if (is_null($value)) {
-            return config('money.' . $this->code . '.precision');
+            return currency($this->code)->getPrecision();
         }
 
         return (int) $value;
@@ -110,7 +136,7 @@ class Currency extends Model
     public function getSymbolAttribute($value)
     {
         if (is_null($value)) {
-            return config('money.' . $this->code . '.symbol');
+            return currency($this->code)->getSymbol();
         }
 
         return $value;
@@ -124,7 +150,7 @@ class Currency extends Model
     public function getSymbolFirstAttribute($value)
     {
         if (is_null($value)) {
-            return config('money.' . $this->code . '.symbol_first');
+            return currency($this->code)->isSymbolFirst();
         }
 
         return $value;
@@ -138,7 +164,7 @@ class Currency extends Model
     public function getDecimalMarkAttribute($value)
     {
         if (is_null($value)) {
-            return config('money.' . $this->code . '.decimal_mark');
+            return currency($this->code)->getDecimalMark();
         }
 
         return $value;
@@ -152,22 +178,43 @@ class Currency extends Model
     public function getThousandsSeparatorAttribute($value)
     {
         if (is_null($value)) {
-            return config('money.' . $this->code . '.thousands_separator');
+            return currency($this->code)->getThousandsSeparator();
         }
 
         return $value;
     }
 
     /**
-     * Scope currency by code.
+     * Get the line actions.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param mixed $code
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return array
      */
-    public function scopeCode($query, $code)
+    public function getLineActionsAttribute()
     {
-        return $query->where($this->table . '.code', $code);
+        $actions = [];
+
+        $actions[] = [
+            'title' => trans('general.edit'),
+            'icon' => 'edit',
+            'url' => route('currencies.edit', $this->id),
+            'permission' => 'update-settings-currencies',
+            'attributes' => [
+                'id' => 'index-line-actions-edit-currency-' . $this->id,
+            ],
+        ];
+
+        $actions[] = [
+            'type' => 'delete',
+            'icon' => 'delete',
+            'route' => 'currencies.destroy',
+            'permission' => 'delete-settings-currencies',
+            'attributes' => [
+                'id' => 'index-line-actions-delete-currency-' . $this->id,
+            ],
+            'model' => $this,
+        ];
+
+        return $actions;
     }
 
     /**

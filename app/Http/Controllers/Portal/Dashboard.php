@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Portal;
 
 use App\Models\Document\Document;
 use App\Traits\Charts;
-use App\Utilities\Chartjs;
-use Date;
+use App\Traits\DateTime;
+use App\Utilities\Date;
 
 class Dashboard
 {
-    use Charts;
+    use Charts, DateTime;
 
     /**
      * Display a listing of the resource.
@@ -20,76 +20,22 @@ class Dashboard
     {
         $contact = user()->contact;
 
-        $invoices = Document::invoice()->accrued()->where('contact_id', $contact->id)->get();
-
-        $start = Date::parse(request('start', Date::today()->startOfYear()->format('Y-m-d')));
-        $end = Date::parse(request('end', Date::today()->endOfYear()->format('Y-m-d')));
-
-        $start_month = $start->month;
-        $end_month = $end->month;
-
-        // Monthly
-        $labels = [];
-
-        $s = clone $start;
-
-        for ($j = $end_month; $j >= $start_month; $j--) {
-            $labels[$end_month - $j] = $s->format('M Y');
-
-            $s->addMonth();
+        // Redirect user redirect landing page..
+        if (!$contact) {
+            return redirect(user()->getLandingPageOfUser());
         }
+
+        $financial_year = $this->getFinancialYear();
+
+        $start = Date::parse(request('start_date', $financial_year->copy()->getStartDate()->toDateString()));
+        $end = Date::parse(request('end_date', $financial_year->copy()->getEndDate()->toDateString()));
+
+        //$invoices = Document::invoice()->accrued()->where('contact_id', $contact->id)->get();
+        $invoices = Document::invoice()->accrued()->whereBetween('due_at', [$start, $end])->where('contact_id', $contact->id)->get();
 
         $amounts = $this->calculateAmounts($invoices, $start, $end);
 
-        $grand = array_sum($amounts['unpaid']) + array_sum($amounts['paid']) + array_sum($amounts['overdue']);
-
-        $totals = [
-            'paid' => money(array_sum($amounts['paid']), setting('default.currency'), true),
-            'unpaid' => money(array_sum($amounts['unpaid']), setting('default.currency'), true),
-            'overdue' => money(array_sum($amounts['overdue']), setting('default.currency'), true),
-        ];
-
-        $progress = [
-            'paid' => !empty($grand) ? (100 / $grand) * array_sum($amounts['paid']) : '0',
-            'unpaid' => !empty($grand) ? (100 / $grand) * array_sum($amounts['unpaid']) : '0',
-            'overdue' => !empty($grand) ? (100 / $grand) * array_sum($amounts['overdue']) : '0',
-        ];
-
-        $chart = new Chartjs();
-        $chart->type('line')
-            ->width(0)
-            ->height(300)
-            ->options($this->getLineChartOptions())
-            ->labels(array_values($labels));
-
-        $chart->dataset(trans('general.paid'), 'line', array_values($amounts['paid']))
-            ->backgroundColor('#6da252')
-            ->color('#6da252')
-            ->options([
-                'borderWidth' => 4,
-                'pointStyle' => 'line',
-            ])
-            ->fill(false);
-
-        $chart->dataset(trans('general.unpaid'), 'line', array_values($amounts['unpaid']))
-            ->backgroundColor('#efad32')
-            ->color('#efad32')
-            ->options([
-                'borderWidth' => 4,
-                'pointStyle' => 'line',
-            ])
-            ->fill(false);
-
-        $chart->dataset(trans('general.overdue'), 'line', array_values($amounts['overdue']))
-            ->backgroundColor('#ef3232')
-            ->color('#ef3232')
-            ->options([
-                'borderWidth' => 4,
-                'pointStyle' => 'line',
-            ])
-            ->fill(false);
-
-        return view('portal.dashboard.index', compact('contact', 'invoices', 'totals', 'progress', 'chart'));
+        return view('portal.dashboard.index', compact('contact', 'invoices'));
     }
 
     private function calculateAmounts($invoices, $start, $end)

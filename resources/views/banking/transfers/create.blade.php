@@ -1,50 +1,82 @@
-@extends('layouts.admin')
+<x-layouts.admin>
+    <x-slot name="title">
+        {{ trans('general.title.new', ['type' => trans_choice('general.transfers', 1)]) }}
+    </x-slot>
 
-@section('title', trans('general.title.new', ['type' => trans_choice('general.transfers', 1)]))
+    <x-slot name="favorite"
+        title="{{ trans('general.title.new', ['type' => trans_choice('general.transfers', 1)]) }}"
+        icon="sync_alt"
+        route="transfers.create"
+    ></x-slot>
 
-@section('content')
-    <div class="card">
-        {!! Form::open([
-            'route' => 'transfers.store',
-            'id' => 'transfer',
-            '@submit.prevent' => 'onSubmit',
-            '@keydown' => 'form.errors.clear($event.target.name)',
-            'files' => true,
-            'role' => 'form',
-            'class' => 'form-loading-button',
-            'novalidate' => true
-        ]) !!}
+    <x-slot name="content">
+        <x-form.container>
+            <x-form id="transfer" route="transfers.store">
+                <x-form.section>
+                    <x-slot name="head">
+                        <x-form.section.head title="{{ trans('general.general') }}" description="{{ trans('transfers.form_description.general') }}" />
+                    </x-slot>
 
-            <div class="card-body">
-                <div class="row">
-                    {{ Form::selectGroup('from_account_id', trans('transfers.from_account'), 'university', $accounts, null, ['required' => 'required', 'change' => 'onChangeAccount']) }}
+                    <x-slot name="body">
+                        <x-form.group.select name="from_account_id" label="{{ trans('transfers.from_account') }}" :options="$accounts" change="onChangeFromAccount" />
 
-                    {{ Form::selectGroup('to_account_id', trans('transfers.to_account'), 'university', $accounts) }}
+                        <x-form.group.select name="to_account_id" label="{{ trans('transfers.to_account') }}" :options="$accounts" change="onChangeToAccount" />
 
-                    {{ Form::moneyGroup('amount', trans('general.amount'), 'money-bill-alt', ['required' => 'required', 'currency' => $currency, 'dynamic-currency' => 'currency'], 0) }}
+                        <div v-if="show_rate" class="sm:col-span-3">
+                            <x-form.input.hidden name="from_currency_code" v-model="form.from_currency_code" />
 
-                    {{ Form::dateGroup('transferred_at', trans('general.date'), 'calendar', ['id' => 'transferred_at', 'class' => 'form-control datepicker', 'required' => 'required', 'date-format' => 'Y-m-d', 'autocomplete' => 'off'], Date::now()->toDateString()) }}
+                            <x-form.group.text name="from_account_rate" label="{{ trans('transfers.from_account_rate') }}" v-disabled="form.from_currency_code == '{{ default_currency() }}'" />
+                        </div>
 
-                    {{ Form::textareaGroup('description', trans('general.description')) }}
+                        <div v-if="show_rate" class="sm:col-span-3">
+                            <x-form.input.hidden name="to_currency_code" v-model="form.to_currency_code" />
 
-                    {{ Form::selectGroup('payment_method', trans_choice('general.payment_methods', 1), 'credit-card', $payment_methods, setting('default.payment_method')) }}
+                            <x-form.group.text name="to_account_rate" label="{{ trans('transfers.to_account_rate') }}" v-disabled="form.to_currency_code == '{{ default_currency() }}'" />
+                        </div>
 
-                    {{ Form::textGroup('reference', trans('general.reference'), 'file', []) }}
+                        <x-form.group.date name="transferred_at" label="{{ trans('general.date') }}" icon="calendar_today" value="{{ Date::now()->toDateString() }}" show-date-format="{{ company_date_format() }}" date-format="Y-m-d" autocomplete="off" />
 
-                    {!! Form::hidden('currency_code', null, ['id' => 'currency_code', 'v-model' => 'form.currency_code']) !!}
-                    {!! Form::hidden('currency_rate', null, ['id' => 'currency_rate', 'v-model' => 'form.currency_rate']) !!}
-                </div>
-            </div>
+                        <x-form.group.money name="amount" label="{{ trans('general.amount') }}" value="0" :currency="$currency" dynamicCurrency="currency" />
 
-            <div class="card-footer">
-                <div class="row save-buttons">
-                    {{ Form::saveButtons('transfers.index') }}
-                </div>
-            </div>
-        {!! Form::close() !!}
-    </div>
-@endsection
+                        <x-form.group.textarea name="description" label="{{ trans('general.description') }}" not-required />
+                    </x-slot>
+                </x-form.section>
 
-@push('scripts_start')
-    <script src="{{ asset('public/js/banking/transfers.js?v=' . version('short')) }}"></script>
-@endpush
+                <x-form.section>
+                    <x-slot name="head">
+                        <x-form.section.head title="{{ trans_choice('general.others', 1) }}" description="{{ trans('transfers.form_description.other') }}" />
+                    </x-slot>
+
+                    <x-slot name="body">
+                        <x-form.group.payment-method />
+
+                        <x-form.group.text name="reference" label="{{ trans('general.reference') }}" not-required />
+
+                        <x-form.group.attachment />
+
+                        <x-form.input.hidden name="currency_code" v-model="form.currency_code" />
+                        <x-form.input.hidden name="currency_rate" v-model="form.currency_rate" />
+                    </x-slot>
+                </x-form.section>
+
+                <x-form.section>
+                    <x-slot name="foot">
+                        <x-form.buttons cancel-route="transfers.index" />
+                    </x-slot>
+                </x-form.section>
+            </x-form>
+        </x-form.container>
+    </x-slot>
+
+    @push('scripts_start')
+        <script type="text/javascript">
+            if (typeof aka_currency !== 'undefined') {
+                aka_currency = {!! json_encode(! empty($currency) ? $currency : config('money.currencies.' . company()->currency)) !!};
+            } else {
+                var aka_currency = {!! json_encode(! empty($currency) ? $currency : config('money.currencies.' . company()->currency)) !!};
+            }
+        </script>
+    @endpush
+
+    <x-script folder="banking" file="transfers" />
+</x-layouts.admin>

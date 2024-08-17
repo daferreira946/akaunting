@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Modules;
 
 use App\Abstracts\Http\Controller;
+use App\Http\Requests\Module\Install as InstallRequest;
 use App\Jobs\Install\CopyFiles;
 use App\Jobs\Install\DisableModule;
 use App\Jobs\Install\DownloadFile;
@@ -81,7 +82,7 @@ class Item extends Controller
      *
      * @return Response
      */
-    public function steps(Request $request)
+    public function steps(InstallRequest $request)
     {
         $steps = [];
 
@@ -135,7 +136,7 @@ class Item extends Controller
      *
      * @return Response
      */
-    public function download(Request $request)
+    public function download(InstallRequest $request)
     {
         try {
             $path = $this->dispatch(new DownloadFile($request['alias'], $request['version']));
@@ -167,7 +168,7 @@ class Item extends Controller
      *
      * @return Response
      */
-    public function unzip(Request $request)
+    public function unzip(InstallRequest $request)
     {
         try {
             $path = $this->dispatch(new UnzipFile($request['alias'], $request['path']));
@@ -199,12 +200,12 @@ class Item extends Controller
      *
      * @return Response
      */
-    public function copy(Request $request)
+    public function copy(InstallRequest $request)
     {
         try {
             $this->dispatch(new CopyFiles($request['alias'], $request['path']));
 
-            event(new \App\Events\Module\Copied($request['alias'], session('company_id')));
+            event(new \App\Events\Module\Copied($request['alias'], company_id()));
 
             $json = [
                 'success' => true,
@@ -233,24 +234,38 @@ class Item extends Controller
      *
      * @return Response
      */
-    public function install(Request $request)
+    public function install(InstallRequest $request)
     {
         try {
-            event(new \App\Events\Module\Installing($request['alias'], session('company_id')));
+            event(new \App\Events\Module\Installing($request['alias'], company_id()));
 
-            $this->dispatch(new InstallModule($request['alias'], session('company_id')));
+            $this->dispatch(new InstallModule($request['alias'], company_id(), setting('default.locale')));
 
             $name = module($request['alias'])->getName();
+            $module_routes = module_attribute($request['alias'], 'routes', []);
 
             $message = trans('modules.installed', ['module' => $name]);
 
             flash($message)->success();
 
+            $redirect = route('apps.app.show', $request['alias']);
+
+            // Get module.json redirect route
+            if (! empty($module_routes['redirect_after_install'])) {
+                if (is_array($module_routes['redirect_after_install'])) {
+                    $route = array_shift($module_routes['redirect_after_install']);
+
+                    $redirect = route($route, $module_routes['redirect_after_install']);
+                } else {
+                    $redirect = route($module_routes['redirect_after_install']);
+                }
+            }
+
             $json = [
                 'success' => true,
                 'error' => false,
                 'message' => null,
-                'redirect' => route('apps.app.show', $request['alias']),
+                'redirect' => $redirect,
                 'data' => [
                     'name' => $name,
                     'alias' => $request['alias'],
@@ -259,7 +274,7 @@ class Item extends Controller
         } catch (\Exception $e) {
             $message = $e->getMessage();
 
-            flash($message)->error();
+            flash($message)->error()->important();
 
             $json = [
                 'success' => false,
@@ -277,7 +292,7 @@ class Item extends Controller
         try {
             $name = module($alias)->getName();
 
-            $this->dispatch(new UninstallModule($alias, session('company_id')));
+            $this->dispatch(new UninstallModule($alias, company_id(), setting('default.locale')));
 
             $message = trans('modules.uninstalled', ['module' => $name]);
 
@@ -285,7 +300,7 @@ class Item extends Controller
         } catch (\Exception $e) {
             $message = $e->getMessage();
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return redirect()->route('apps.app.show', $alias)->send();
@@ -296,7 +311,7 @@ class Item extends Controller
         try {
             $name = module($alias)->getName();
 
-            $this->dispatch(new EnableModule($alias, session('company_id')));
+            $this->dispatch(new EnableModule($alias, company_id(), setting('default.locale')));
 
             $message = trans('modules.enabled', ['module' => $name]);
 
@@ -304,7 +319,7 @@ class Item extends Controller
         } catch (\Exception $e) {
             $message = $e->getMessage();
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return redirect()->route('apps.app.show', $alias)->send();
@@ -315,7 +330,7 @@ class Item extends Controller
         try {
             $name = module($alias)->getName();
 
-            $this->dispatch(new DisableModule($alias, session('company_id')));
+            $this->dispatch(new DisableModule($alias, company_id(), setting('default.locale')));
 
             $message = trans('modules.disabled', ['module' => $name]);
 
@@ -323,10 +338,31 @@ class Item extends Controller
         } catch (\Exception $e) {
             $message = $e->getMessage();
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return redirect()->route('apps.app.show', $alias)->send();
+    }
+
+    public function releases($alias, Request $request)
+    {
+        $data = [
+            'query' => [
+                'page' => $request->get('page', 1),
+            ]
+        ];
+
+        $releases = $this->getModuleReleases($alias, $data);
+
+        $html = view('components.layouts.modules.releases', compact('releases'))->render();
+
+        return response()->json([
+            'success' => true,
+            'error' => false,
+            'data' => $releases,
+            'message' => null,
+            'html' => $html,
+        ]);
     }
 
     public function reviews($alias, Request $request)
@@ -339,7 +375,7 @@ class Item extends Controller
 
         $reviews = $this->getModuleReviews($alias, $data);
 
-        $html = view('partials.modules.reviews', compact('reviews'))->render();
+        $html = view('components.layouts.modules.reviews', compact('reviews'))->render();
 
         return response()->json([
             'success' => true,
@@ -352,7 +388,7 @@ class Item extends Controller
 
     public function documentation($alias)
     {
-        $documentation = $this->getDocumentation($alias);
+        $documentation = $this->getModuleDocumentation($alias);
 
         $back = route('apps.app.show', $alias);
 

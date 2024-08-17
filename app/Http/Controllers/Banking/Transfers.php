@@ -13,8 +13,7 @@ use App\Jobs\Banking\DeleteTransfer;
 use App\Models\Banking\Account;
 use App\Models\Banking\Transfer;
 use App\Models\Setting\Currency;
-use App\Utilities\Modules;
-use Date;
+use Illuminate\Support\Str;
 
 class Transfers extends Controller
 {
@@ -25,64 +24,11 @@ class Transfers extends Controller
      */
     public function index()
     {
-        $data = [];
-
-        $items = Transfer::with(
+        $transfers = Transfer::with(
             'expense_transaction', 'expense_transaction.account', 'income_transaction', 'income_transaction.account'
         )->collect(['expense_transaction.paid_at' => 'desc']);
 
-        foreach ($items as $item) {
-            $income_transaction = $item->income_transaction;
-            $expense_transaction = $item->expense_transaction;
-
-            $name = trans('transfers.messages.delete', [
-                'from' => $expense_transaction->account->name,
-                'to' => $income_transaction->account->name,
-                'amount' => money($expense_transaction->amount, $expense_transaction->currency_code, true)
-            ]);
-
-            $data[] = (object) [
-                'id' => $item->id,
-                'name' => $name,
-                'from_account' => $expense_transaction->account->name,
-                'to_account' => $income_transaction->account->name,
-                'amount' => $expense_transaction->amount,
-                'currency_code' => $expense_transaction->currency_code,
-                'paid_at' => $expense_transaction->paid_at,
-            ];
-        }
-
-        $special_key = [
-            'expense_transaction.name' => 'from_account',
-            'income_transaction.name' => 'to_account',
-        ];
-
-        $request = request();
-
-        if (isset($request['sort']) && array_key_exists($request['sort'], $special_key)) {
-            $sort_order = [];
-
-            foreach ($data as $key => $value) {
-                $sort = $request['sort'];
-
-                if (array_key_exists($request['sort'], $special_key)) {
-                    $sort = $special_key[$request['sort']];
-                }
-
-                $sort_order[$key] = $value->{$sort};
-            }
-
-            $sort_type = (isset($request['order']) && $request['order'] == 'asc') ? SORT_ASC : SORT_DESC;
-
-            array_multisort($sort_order, $sort_type, $data);
-        }
-
-        $transfers = $request->expectsJson() ? $data : $this->paginate($data);
-
-        $accounts = collect(Account::enabled()->orderBy('name')->pluck('name', 'id'))
-            ->prepend(trans('general.all_type', ['type' => trans_choice('general.accounts', 2)]), '');
-
-        return $this->response('banking.transfers.index', compact('transfers', 'accounts'));
+        return $this->response('banking.transfers.index', compact('transfers'));
     }
 
     /**
@@ -90,9 +36,9 @@ class Transfers extends Controller
      *
      * @return Response
      */
-    public function show()
+    public function show(Transfer $transfer)
     {
-        return redirect()->route('transfers.index');
+        return view('banking.transfers.show', compact('transfer'));
     }
 
     /**
@@ -102,13 +48,11 @@ class Transfers extends Controller
      */
     public function create()
     {
-        $accounts = Account::enabled()->orderBy('name')->pluck('name', 'id');
+        $accounts = Account::enabled()->orderBy('name')->get()->pluck('title', 'id');
 
-        $payment_methods = Modules::getPaymentMethods();
+        $currency = Currency::where('code', default_currency())->first();
 
-        $currency = Currency::where('code', setting('default.currency'))->first();
-
-        return view('banking.transfers.create', compact('accounts', 'payment_methods', 'currency'));
+        return view('banking.transfers.create', compact('accounts', 'currency'));
     }
 
     /**
@@ -123,9 +67,9 @@ class Transfers extends Controller
         $response = $this->ajaxDispatch(new CreateTransfer($request));
 
         if ($response['success']) {
-            $response['redirect'] = route('transfers.index');
+            $response['redirect'] = route('transfers.show', $response['data']->id);
 
-            $message = trans('messages.success.added', ['type' => trans_choice('general.transfers', 1)]);
+            $message = trans('messages.success.created', ['type' => trans_choice('general.transfers', 1)]);
 
             flash($message)->success();
         } else {
@@ -133,10 +77,28 @@ class Transfers extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
+    }
+
+    /**
+     * Duplicate the specified resource.
+     *
+     * @param  Transfer $transfer
+     *
+     * @return Response
+     */
+    public function duplicate(Transfer $transfer)
+    {
+        $clone = $transfer->duplicate();
+
+        $message = trans('messages.success.duplicated', ['type' => trans_choice('general.transfers', 1)]);
+
+        flash($message)->success();
+
+        return redirect()->route('transfers.show', $clone->id);
     }
 
     /**
@@ -148,15 +110,19 @@ class Transfers extends Controller
      */
     public function import(ImportRequest $request)
     {
-        if (true !== $result = $this->importExcel(new Import, $request, 'banking/transfers')) {
-            return $result;
+        $response = $this->importExcel(new Import, $request, trans_choice('general.transfers', 2));
+
+        if ($response['success']) {
+            $response['redirect'] = route('transfers.index');
+
+            flash($response['message'])->success();
+        } else {
+            $response['redirect'] = route('import.create', ['banking', 'transfers']);
+
+            flash($response['message'])->error()->important();
         }
 
-        $message = trans('messages.success.imported', ['type' => trans_choice('general.transfers', 2)]);
-
-        flash($message)->success();
-
-        return redirect()->route('transfers.index');
+        return response()->json($response);
     }
 
     /**
@@ -168,23 +134,13 @@ class Transfers extends Controller
      */
     public function edit(Transfer $transfer)
     {
-        $transfer['from_account_id'] = $transfer->expense_transaction->account_id;
-        $transfer['to_account_id'] = $transfer->income_transaction->account_id;
-        $transfer['transferred_at'] = Date::parse($transfer->expense_transaction->paid_at)->format('Y-m-d');
-        $transfer['description'] = $transfer->expense_transaction->description;
-        $transfer['amount'] = $transfer->expense_transaction->amount;
-        $transfer['payment_method'] = $transfer->expense_transaction->payment_method;
-        $transfer['reference'] = $transfer->expense_transaction->reference;
+        $accounts = Account::enabled()->orderBy('name')->get()->pluck('title', 'id');
 
-        $accounts = Account::enabled()->orderBy('name')->pluck('name', 'id');
+        $currency_code = ($transfer->expense_transaction->account) ? $transfer->expense_transaction->account->currency_code : default_currency();
 
-        $payment_methods = Modules::getPaymentMethods();
+        $currency = Currency::where('code', $currency_code)->first();
 
-        $account = $transfer->expense_transaction->account;
-
-        $currency = Currency::where('code', $account->currency_code)->first();
-
-        return view('banking.transfers.edit', compact('transfer', 'accounts', 'payment_methods', 'currency'));
+        return view('banking.transfers.edit', compact('transfer', 'accounts', 'currency'));
     }
 
     /**
@@ -200,7 +156,7 @@ class Transfers extends Controller
         $response = $this->ajaxDispatch(new UpdateTransfer($transfer, $request));
 
         if ($response['success']) {
-            $response['redirect'] = route('transfers.index');
+            $response['redirect'] = route('transfers.show', $transfer->id);
 
             $message = trans('messages.success.updated', ['type' => trans_choice('general.transfers', 1)]);
 
@@ -210,7 +166,7 @@ class Transfers extends Controller
 
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -236,7 +192,7 @@ class Transfers extends Controller
         } else {
             $message = $response['message'];
 
-            flash($message)->error();
+            flash($message)->error()->important();
         }
 
         return response()->json($response);
@@ -250,5 +206,47 @@ class Transfers extends Controller
     public function export()
     {
         return $this->exportExcel(new Export, trans_choice('general.transfers', 2));
+    }
+
+    /**
+     * Print the transfer.
+     *
+     * @param  Transfer $transfer
+     *
+     * @return Response
+     */
+    public function printTransfer(Transfer $transfer)
+    {
+        event(new \App\Events\Banking\TransferPrinting($transfer));
+
+        $view = view($transfer->template_path, compact('transfer'));
+
+        return mb_convert_encoding($view, 'HTML-ENTITIES', 'UTF-8');
+    }
+
+    /**
+     * Download the PDF file of transfer.
+     *
+     * @param  Transfer $transfer
+     *
+     * @return Response
+     */
+    public function pdfTransfer(Transfer $transfer)
+    {
+        event(new \App\Events\Banking\TransferPrinting($transfer));
+
+        $currency_style = true;
+
+        $view = view($transfer->template_path, compact('transfer', 'currency_style'))->render();
+        $html = mb_convert_encoding($view, 'HTML-ENTITIES', 'UTF-8');
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadHTML($html);
+
+        //$pdf->setPaper('A4', 'portrait');
+
+        $file_name = trans_choice('general.transfers', 1) . '-' . Str::slug($transfer->id, '-', language()->getShortCode()) . '-' . time() . '.pdf';
+
+        return $pdf->download($file_name);
     }
 }

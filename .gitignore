@@ -85,7 +85,6 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 .env
-.env.example
 robots.txt
 _ide_helper.php
 _ide_helper_models.php
@@ -93,7 +92,6 @@ _ide_helper_models.php
 /storage/debugbar/*
 .phpunit.result.cache
 modules/*
-!modules/OfflinePayments
-!modules/PaypalStandard
-!modules/BC21
+!modules/.gitkeep
 .laravelstatsrc
+.DS_Store

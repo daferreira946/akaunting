@@ -3,39 +3,29 @@
 namespace App\Jobs\Auth;
 
 use App\Abstracts\Job;
+use App\Events\Auth\RoleCreated;
+use App\Events\Auth\RoleCreating;
+use App\Interfaces\Job\HasOwner;
+use App\Interfaces\Job\HasSource;
+use App\Interfaces\Job\ShouldCreate;
 use App\Models\Auth\Role;
 
-class CreateRole extends Job
+class CreateRole extends Job implements HasOwner, HasSource, ShouldCreate
 {
-    protected $role;
-
-    protected $request;
-
-    /**
-     * Create a new job instance.
-     *
-     * @param  $request
-     */
-    public function __construct($request)
+    public function handle(): Role
     {
-        $this->request = $this->getRequestInstance($request);
-    }
+        event(new RoleCreating($this->request));
 
-    /**
-     * Execute the job.
-     *
-     * @return Permission
-     */
-    public function handle()
-    {
         \DB::transaction(function () {
-            $this->role = Role::create($this->request->input());
+            $this->model = Role::create($this->request->input());
 
             if ($this->request->has('permissions')) {
-                $this->role->permissions()->attach($this->request->get('permissions'));
+                $this->model->permissions()->attach($this->request->get('permissions'));
             }
         });
 
-        return $this->role;
+        event(new RoleCreated($this->model, $this->request));
+
+        return $this->model;
     }
 }

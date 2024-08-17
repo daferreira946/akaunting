@@ -1,32 +1,43 @@
-{!! Form::open([
-    'id' => 'form-item-column',
-    'method' => 'PATCH',
-    'route' => 'modals.documents.item-columns.update',
-    '@submit.prevent' => 'onSubmit',
-    '@keydown' => 'form.errors.clear($event.target.name)',
-    'files' => true,
-    'role' => 'form',
-    'class' => 'form-loading-button',
-    'novalidate' => true,
-]) !!}
-    <div class="row">
-        {{ Form::invoice_text('item_name', trans('settings.invoice.item_name'), 'font', $item_names, setting($type . '.item_name'), [], 'item_name_input', setting($type . '.item_name_input', null), 'col-md-12') }}
+<x-form id="form-item-column" method="PATCH" route="modals.documents.item-columns.update">
+    <div class="grid sm:grid-cols-6 gap-x-8 gap-y-6 my-3.5">
+        <x-form.group.invoice-text
+            name="item_name"
+            label="{{ trans('settings.invoice.item_name') }}"
+            :options="$item_names"
+            :selected="$item_name"
+            change="settingsInvoice"
+            input-name="item_name_input"
+            :input-value="$item_name_input"
+            form-group-class="sm:col-span-6 sm:gap-0"
+        />
 
-        {{ Form::invoice_text('price_name', trans('settings.invoice.price_name'), 'font', $price_names, setting($type . '.price_name'), [], 'price_name_input', setting($type . '.price_name_input', null), 'col-md-12') }}
+        <x-form.group.invoice-text
+            name="price_name"
+            label="{{ trans('settings.invoice.price_name') }}"
+            :options="$price_names"
+            :selected="$price_name"
+            change="settingsInvoice"
+            input-name="price_name_input"
+            :input-value="$price_name_input"
+            form-group-class="sm:col-span-6 sm:gap-0"
+        />
 
-        {{ Form::invoice_text('quantity_name', trans('settings.invoice.quantity_name'), 'font', $quantity_names, setting($type . '.quantity_name'), [], 'quantity_name_input', setting($type . '.quantity_name_input', null), 'col-md-12') }}
+        <x-form.group.invoice-text
+            name="quantity_name"
+            label="{{ trans('settings.invoice.quantity_name') }}"
+            :options="$quantity_names"
+            :selected="$quantity_name"
+            change="settingsInvoice"
+            input-name="quantity_name_input"
+            :input-value="$quantity_name_input"
+            form-group-class="sm:col-span-6 sm:gap-0"
+        />
 
-        {{ Form::radioGroup('hide_item_name', trans('settings.invoice.hide.item_name'), setting($type . '.hide_item_name', null)) }}
+        <x-form.group.toggle name="hide_item_description" label="{{ trans('settings.invoice.hide.item_description') }}" :value="$hide_item_description" change="settingsInvoice()" />
+        <x-form.group.toggle name="hide_amount" label="{{ trans('settings.invoice.hide.amount') }}" :value="$hide_amount" not-required form-group-class="sm:col-span-6" />
 
-        {{ Form::radioGroup('hide_item_description', trans('settings.invoice.hide.item_description'), setting($type . '.hide_item_description', null)) }}
-
-        {{ Form::radioGroup('hide_quantity', trans('settings.invoice.hide.quantity'), setting($type . '.hide_quantity', null)) }}
-
-        {{ Form::radioGroup('hide_price', trans('settings.invoice.hide.price'), setting($type . '.hide_price', null)) }}
-
-        {{ Form::radioGroup('hide_amount', trans('settings.invoice.hide.amount'), setting($type . '.hide_amount', null)) }}
-
-        {!! Form::hidden('type', $type) !!}
-        {!! Form::hidden('_prefix', $type) !!}
+        <x-form.input.hidden name="type" :value="$type" />
+        <x-form.input.hidden name="enabled" value="1" />
+        <x-form.input.hidden name="message_name_or_description_required" :value="trans('invoices.messages.name_or_description_required', ['name' => trans('general.name'), 'description' => trans('general.description')])" />
     </div>
-{!! Form::close() !!}
+</x-form>

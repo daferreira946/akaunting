@@ -8,14 +8,11 @@ return [
 
     'categories' => [
         'deposit'           => 'Депозит',
-        'sales'             => 'Продажби',
+        'sales'             => 'Приходи',
     ],
 
     'currencies' => [
         'usd'               => 'Американски долар',
-        'eur'               => 'Евро',
-        'gbp'               => 'Британска лира',
-        'try'               => 'Турска лира',
     ],
 
     'offline_payments' => [

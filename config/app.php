@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\Facade;
+
 return [
 
     /*
@@ -14,9 +16,20 @@ return [
 
     'name' => env('APP_NAME', 'Akaunting'),
 
-    'installed' => env('APP_INSTALLED', false),
+    'installed' => (bool) env('APP_INSTALLED', false),
 
-    'schedule_time' => env('APP_SCHEDULE_TIME', '9:00'),
+    'schedule_time' => env('APP_SCHEDULE_TIME', '09:00'),
+
+    'eager_load' => (bool) env('APP_EAGER_LOAD', true),
+
+    'throttles' => [
+        'api' => env('APP_THROTTLES_API', '60'),
+        'import' => env('APP_THROTTLES_IMPORT', '1'),
+        'email' => [
+            'minute' => env('APP_THROTTLES_EMAIL_MINUTE', '5'),
+            'month' => env('APP_THROTTLES_EMAIL_MONTH', '500'),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -55,9 +68,9 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+    'url' => env('APP_URL', ''),
 
-    'asset_url' => env('ASSET_URL', null),
+    'asset_url' => env('ASSET_URL'),
 
     /*
     |--------------------------------------------------------------------------
@@ -70,7 +83,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------
@@ -96,7 +109,7 @@ return [
     |
     */
 
-    'fallback_locale' => 'en-GB',
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en-GB'),
 
     /*
     |--------------------------------------------------------------------------
@@ -108,7 +121,7 @@ return [
     | localized telephone numbers, street address information and more.
     |
     */
-    'faker_locale' => 'en_GB',
+    'faker_locale' => env('APP_FAKER_LOCALE', 'en_GB'),
 
     /*
     |--------------------------------------------------------------------------
@@ -167,6 +180,7 @@ return [
         /*
          * Package Service Providers...
          */
+        Bugsnag\BugsnagLaravel\BugsnagServiceProvider::class,
         Laravel\Tinker\TinkerServiceProvider::class,
 
         /*
@@ -174,12 +188,13 @@ return [
          */
         App\Providers\App::class,
         App\Providers\Auth::class,
+        App\Providers\Binding::class,
         App\Providers\Blade::class,
         // App\Providers\Broadcast::class,
         App\Providers\Event::class,
-        App\Providers\Form::class,
         App\Providers\Macro::class,
         App\Providers\Observer::class,
+        App\Providers\Queue::class,
         App\Providers\Route::class,
         App\Providers\Validation::class,
         App\Providers\ViewComposer::class,
@@ -197,46 +212,8 @@ return [
     |
     */
 
-    'aliases' => [
-
-        'App' => Illuminate\Support\Facades\App::class,
-        'Arr' => Illuminate\Support\Arr::class,
-        'Artisan' => Illuminate\Support\Facades\Artisan::class,
-        'Auth' => Illuminate\Support\Facades\Auth::class,
-        'Blade' => Illuminate\Support\Facades\Blade::class,
-        'Broadcast' => Illuminate\Support\Facades\Broadcast::class,
-        'Bus' => Illuminate\Support\Facades\Bus::class,
-        'Cache' => Illuminate\Support\Facades\Cache::class,
-        'Config' => Illuminate\Support\Facades\Config::class,
-        'Cookie' => Illuminate\Support\Facades\Cookie::class,
-        'Crypt' => Illuminate\Support\Facades\Crypt::class,
+    'aliases' => Facade::defaultAliases()->merge([
         'Date' => App\Utilities\Date::class,
-        'DB' => Illuminate\Support\Facades\DB::class,
-        'Eloquent' => Illuminate\Database\Eloquent\Model::class,
-        'Event' => Illuminate\Support\Facades\Event::class,
-        'File' => Illuminate\Support\Facades\File::class,
-        'Gate' => Illuminate\Support\Facades\Gate::class,
-        'Hash' => Illuminate\Support\Facades\Hash::class,
-        'Http' => Illuminate\Support\Facades\Http::class,
-        'Lang' => Illuminate\Support\Facades\Lang::class,
-        'Log' => Illuminate\Support\Facades\Log::class,
-        'Mail' => Illuminate\Support\Facades\Mail::class,
-        'Notification' => Illuminate\Support\Facades\Notification::class,
-        'Password' => Illuminate\Support\Facades\Password::class,
-        'Queue' => Illuminate\Support\Facades\Queue::class,
-        'Redirect' => Illuminate\Support\Facades\Redirect::class,
-        'Redis' => Illuminate\Support\Facades\Redis::class,
-        'Request' => Illuminate\Support\Facades\Request::class,
-        'Response' => Illuminate\Support\Facades\Response::class,
-        'Route' => Illuminate\Support\Facades\Route::class,
-        'Schema' => Illuminate\Support\Facades\Schema::class,
-        'Session' => Illuminate\Support\Facades\Session::class,
-        'Storage' => Illuminate\Support\Facades\Storage::class,
-        'Str' => Illuminate\Support\Str::class,
-        'URL' => Illuminate\Support\Facades\URL::class,
-        'Validator' => Illuminate\Support\Facades\Validator::class,
-        'View' => Illuminate\Support\Facades\View::class,
-
-    ],
+    ])->toArray(),
 
 ];
